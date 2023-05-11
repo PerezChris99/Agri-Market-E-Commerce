@@ -1,5 +1,5 @@
-env
-sqlite3
-.env
 .sqlite3
-okay
+.sqlite2
+.sqlite3
+db
+env
