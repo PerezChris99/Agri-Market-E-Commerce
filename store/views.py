@@ -1,6 +1,11 @@
 from django.shortcuts import render
-from django.http import HttpRequest,HttpResponse,JsonResponse
+#from django.http import HttpRequest,HttpResponse
+from django.http import JsonResponse
+
+import json
+
 from .models import *
+
 
 def store(request):
     products = Product.objects.all()
@@ -33,7 +38,30 @@ def checkout(request):
     return render(request, 'store/checkout.html', context)
 
 def updateItem(request):
-    return JsonResponse('item was added', safe=False)
+    data = json.loads(request.body)
+    productId = data['productId']
+    action = data['action']
+
+    print('Action:', action)
+    print('productId:', productId)
+
+    customer = request.user.customer
+    product = Product.objects.get(id=productId)
+    order, created = Order.objects.get_or_create(customer=customer, complete=False)
+
+    orderItem, created = OrderItem.objects.get_or_create(order=order, product=product)
+
+    if action == 'add':
+        orderItem.quantity = (orderItem.quantity + 1)
+    elif action == 'remove':
+        orderItem.quantity = (orderItem.quantity - 1)
+
+    orderItem.save()
+
+    if orderItem.quantity <= 0:
+        orderItem.delete()
+
+    return JsonResponse('Item was added', safe=False)
 
 
 
