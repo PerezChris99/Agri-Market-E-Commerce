@@ -70,6 +70,8 @@
 	</div>
 
 	<script type="text/javascript">
+		var total = '{{order.get_cart_total|floatformat:2}}'
+
 		if (user != 'AnonymousUser'){
 			document.getElementById('user-info').innerHTML = ''
 		}
@@ -95,6 +97,34 @@
 
 		function submitFormData(){
 			console.log('Payment button clicked..')
+			
+			var userFormData = {
+				'name':null,
+				'email':null,
+				'total':total,
+			}
+		
+			var shippingInfo = {
+				'address':null,
+				'city':null,
+				'state':null,
+				'zipcode':null,
+			}
+		
+			if (shipping != 'False'){
+				shippingInfo.address = form.address.value
+				shippingInfo.city = form.city.value
+				shippingInfo.state = form.state.value
+				shippingInfo.zipcode = form.zipcode.value
+			}
+		
+			if (user == 'AnonymousUser'){
+				userFormData.name = form.name.value
+				userFormData.email = form.email.value
+			}
+		
+			console.log('Shipping Info:', shippingInfo)
+			console.log('User Info:', userFormData)
 		}
 	</script>
 {% endblock content %}
