@@ -25,13 +25,13 @@
 							<input class="form-control" type="text" name="city" placeholder="City/Town..">
 						</div>
 						<div class="form-field">
-							<input class="form-control" type="text" name="state" placeholder="Region..">
+							<input class="form-control" type="text" name="region" placeholder="Region..">
 						</div>
 						<div class="form-field">
 							<input class="form-control" type="text" name="zipcode" placeholder="Zip code..">
 						</div>
 						<div class="form-field">
-							<input class="form-control" type="text" name="country" placeholder="Zip code..">
+							<input class="form-control" type="text" name="country" placeholder="Country..">
 						</div>
 					</div>
 
@@ -70,61 +70,78 @@
 	</div>
 
 	<script type="text/javascript">
+		var shipping = '{{order.shipping}}'
 		var total = '{{order.get_cart_total|floatformat:2}}'
 
-		if (user != 'AnonymousUser'){
+		if(user != 'AnonymousUser'){
 			document.getElementById('user-info').innerHTML = ''
 		}
-	   
-	   if (shipping == 'False' && user != 'AnonymousUser'){
-		   //Hide entire form if user is logged in and shipping is false
-			   document.getElementById('form-wrapper').classList.add("hidden");
-			   //Show payment if logged in user wants to buy an item that does not require shipping
-			   document.getElementById('payment-info').classList.remove("hidden");
-	   }
+
+		if(user != 'AnonymousUser'){
+			document.getElementById('payment-info').classList.remove("hidden");
+		}
 
 		var form = document.getElementById('form')
+
 		form.addEventListener('submit', function(e){
-	    	e.preventDefault()
-	    	console.log('Form Submitted...')
-	    	document.getElementById('form-button').classList.add("hidden");
-	    	document.getElementById('payment-info').classList.remove("hidden");
-	    })
+			e.preventDefault()
+			console.log('Form Submitted....')
+			document.getElementById('form-button').classList.add('hidden')
+			document.getElementById('payment-info').classList.remove('hidden')
+			})
 
 		document.getElementById('make-payment').addEventListener('click', function(e){
 			submitFormData()
 		})
 
 		function submitFormData(){
-			console.log('Payment button clicked..')
-			
+			console.log('Payment button clicked')
+
 			var userFormData = {
 				'name':null,
 				'email':null,
 				'total':total,
 			}
-		
+
 			var shippingInfo = {
 				'address':null,
 				'city':null,
-				'state':null,
+				'region':null,
 				'zipcode':null,
+				'country':null,
 			}
-		
-			if (shipping != 'False'){
+
+			if(shipping != 'False'){
 				shippingInfo.address = form.address.value
 				shippingInfo.city = form.city.value
-				shippingInfo.state = form.state.value
+				shippingInfo.region = form.region.value
 				shippingInfo.zipcode = form.zipcode.value
+				shippingInfo.country = form.country.value
 			}
-		
-			if (user == 'AnonymousUser'){
+
+			if(user == 'AnonymousUser'){
 				userFormData.name = form.name.value
 				userFormData.email = form.email.value
+
 			}
-		
-			console.log('Shipping Info:', shippingInfo)
-			console.log('User Info:', userFormData)
+			var url = '/process_order/'
+			fetch(url,{
+				method:'POST',
+				headers:{
+					'Content-Type': 'application/json',
+					'X-CSRFToken':csrftoken,
+				},
+				body:JSON.stringify({'form':userFormData, 'shipping':shippingInfo})
+			})
+			.then((response) => response.json())
+			.then((data) => {
+				console.log('Success:', data);
+				alert('Transaction complete');
+				window.location.href = "{% url 'store' %}"
+
+			})
+
 		}
 	</script>
+
 {% endblock content %}
