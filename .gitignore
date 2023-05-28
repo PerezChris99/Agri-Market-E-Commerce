@@ -1,7 +1,4 @@
-db
 env
-sqlite2
-sqlite3
-sqlite
+db.sqlite3
 
 
