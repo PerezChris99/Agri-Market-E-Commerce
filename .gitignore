@@ -2,4 +2,6 @@ db
 env
 sqlite2
 sqlite3
+sqlite
+
 
