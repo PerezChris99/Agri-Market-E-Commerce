@@ -74,6 +74,7 @@
 	DXrPFRx-BTZqEhECwwinsXMLnTBFuHInCX6dbNrg&currency=USD"></script>
 
 	<script>
+		var total = '{{order.get_cart_total}}'
 		// Render the PayPal button into #paypal-button-container
 		paypal.Buttons({
 
@@ -86,7 +87,7 @@
 				return actions.order.create({
 					purchase_units: [{
 						amount: {
-							value: '0.01'
+							value: parseFloat(total).toFixed(2)
 						}
 					}]
 				});
@@ -95,8 +96,9 @@
 			// Finalize the transaction
 			onApprove: function(data, actions) {
 				return actions.order.capture().then(function(details) {
+					submitFormData()
 					// Show a success message to the buyer
-					alert('Transaction completed by ' + details.payer.name.given_name + '!');
+					//alert('Transaction completed by ' + details.payer.name.given_name + '!');//
 				});
 			}
 	
@@ -106,7 +108,6 @@
 
 	<script type="text/javascript">
 		var shipping = '{{order.shipping}}'
-		var total = '{{order.get_cart_total}}'
 
 		if(user != 'AnonymousUser'){
 			document.getElementById('user-info').innerHTML = ''
