@@ -1,7 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User, auth
 from django.contrib import messages
-# from django.http import HttpRequest,HttpResponse
+from django.http import HttpResponse
+from django.forms import inlineformset_factory
+from django.contrib.auth.forms import UserCreationForm
+
 from django.http import JsonResponse
 import json
 import datetime
@@ -98,3 +101,12 @@ def processOrder(request):
 
     return JsonResponse("Payment complete!..", safe=False)
 
+def registerPage(request):
+    form = UserCreationForm()
+    context = {'form':form}
+    return render(request, 'store/register.html', context)
+
+def loginPage(request):
+    form = UserCreationForm()
+    context = {'form':form}
+    return render(request, 'store/login.html', context)

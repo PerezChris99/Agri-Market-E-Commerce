@@ -9,5 +9,7 @@ urlpatterns = [
 
     path('update_item/', views.updateItem, name="update_item"),
     path('process_order/', views.processOrder, name="process_order"),
-    path('signup', views.signup, name='signup'),
+
+    path('register/', views.registerPage, name="register"),
+    path('login', views.loginPage, name="login"),
 ]
