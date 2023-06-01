@@ -1,5 +1,6 @@
-from django.shortcuts import render
-
+from django.shortcuts import render, redirect
+from django.contrib.auth.models import User, auth
+from django.contrib import messages
 # from django.http import HttpRequest,HttpResponse
 from django.http import JsonResponse
 import json
@@ -97,5 +98,3 @@ def processOrder(request):
 
     return JsonResponse("Payment complete!..", safe=False)
 
-def signup(request):
-    return render(request, 'store/signup.html')
