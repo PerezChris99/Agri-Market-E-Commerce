@@ -96,3 +96,6 @@ def processOrder(request):
         )
 
     return JsonResponse("Payment complete!..", safe=False)
+
+def signup(request):
+    return render(request, 'store/signup.html')
