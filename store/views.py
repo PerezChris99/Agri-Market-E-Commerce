@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User, auth
+from django.shortcuts import render
 from django.contrib import messages
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
@@ -10,6 +11,9 @@ import json
 import datetime
 from .models import *
 from .utils import cookieCart, cartData, guestOrder
+
+
+from .forms import CreateUserForm
 
 def store(request):
 
@@ -103,6 +107,12 @@ def processOrder(request):
 
 def registerPage(request):
     form = UserCreationForm()
+
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+
     context = {'form':form}
     return render(request, 'store/register.html', context)
 
