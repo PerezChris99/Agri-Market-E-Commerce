@@ -135,5 +135,5 @@ def loginPage(request):
             login(request, user)
             return redirect('store')
             
-    context = {'form':form}
+    context = {}
     return render(request, 'store/login.html', context)
