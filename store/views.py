@@ -5,6 +5,9 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
+from .models import Customer
+
+from django.contrib.auth import authenticate, login, logout
 
 from django.contrib import messages
 
@@ -13,7 +16,6 @@ import json
 import datetime
 from .models import *
 from .utils import cookieCart, cartData, guestOrder
-
 
 from .forms import CreateUserForm
 
@@ -118,11 +120,20 @@ def registerPage(request):
             messages.success(request, 'Account was created for ' + user)
 
             return redirect('login')
-
     context = {'form':form}
     return render(request, 'store/register.html', context)
 
 def loginPage(request):
-    form = UserCreationForm()
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect('store')
+            
     context = {'form':form}
     return render(request, 'store/login.html', context)
