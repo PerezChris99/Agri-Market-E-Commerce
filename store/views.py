@@ -25,7 +25,7 @@ def store(request):
     cartItems = data['cartItems']
 
     products = Product.objects.all()
-    context = {"products": products, "cartItems": cartItems}
+    context = {"products": products}
     return render(request, "store/store.html", context)
 
 def cart(request):
@@ -35,7 +35,7 @@ def cart(request):
     order = data['order']
     items = data['items']
 
-    context = {'items': items, 'order': order, 'cartItems': cartItems}
+    context = {'items': items, 'order': order, 'cart': cartItems}
     return render(request, 'store/cart.html', context)
 
 from django.views.decorators.csrf import csrf_exempt
@@ -59,7 +59,7 @@ def updateItem(request):
     print("Action:", action)
     print("productId:", productId)
 
-    customer = request.user.customer
+    customer = Customer.objects.create(name=request.user.username,email=request.user.email,user=request.user)
     product = Product.objects.get(id=productId)
     order, created = Order.objects.get_or_create(customer=customer, complete=False)
 
@@ -137,3 +137,9 @@ def loginPage(request):
             
     context = {}
     return render(request, 'store/login.html', context)
+
+
+
+def logout_user(request):
+    logout(request)
+    return redirect('store')
