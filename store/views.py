@@ -38,6 +38,14 @@ def cart(request):
     context = {'items': items, 'order': order, 'cart': cartItems}
     return render(request, 'store/cart.html', context)
 
+# function to add the item to  the cart.
+def add_to_cart(request, item_id):
+    cart = request.session.get('cart', {})
+    cart[item_id] = cart.get(item_id, 0) + 1
+    request.session['cart'] = cart
+    return JsonResponse({'success': True})
+
+
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt

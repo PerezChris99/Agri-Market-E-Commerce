@@ -18,4 +18,38 @@
         </div>
         {% endfor %}
     </div>
+
+    <script>
+        <!-- we need a function to capture the adding to cart function. -->
+        function addToCart(itemId) {
+          fetch(`/add-to-cart/${itemId}/`, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCookie('csrftoken'),  // Include CSRF token if required
+              },
+              body: JSON.stringify({}),
+          })
+          .then(response => response.json())
+          .then(data => {
+              // Update the cart UI or perform any other necessary actions
+              console.log(data);
+          })
+          .catch(error => {
+              console.error('Error:', error);
+          });
+      }
+      
+      // Helper function to get CSRF token from cookies
+      function getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+      }
+  
+      
+  
+  
+  
+      </script>
 {% endblock content %}
