@@ -1,20 +1,16 @@
-var updateBtns = document.getElementsByClassName('update-cart')
+const updateBtns = document.getElementsByClassName('update-cart')
 
-for(var i = 0; i < updateBtns.length; i++){
+for(let i = 0; i < updateBtns.length; i++){
     updateBtns[i].addEventListener('click', function(){
-        var productId = this.dataset.product
-        var action = this.dataset.action
+        const productId = this.dataset.product
+        const action = this.dataset.action
         console.log('productId:',productId, 'Action:',action)
-        // console.log('USER:',user)
 
-        if(user == 'AnonymousUser'){
+        if(user === 'AnonymousUser'){
             addCookieItem(productId, action)
         }else{
             addToCartV2(productId)
             console.log("added to cart v2")
-            // call the add to function to add to the cart 
-
-            // updateUserOrder(productId, action)
         }
     })
 }
@@ -22,16 +18,15 @@ for(var i = 0; i < updateBtns.length; i++){
 function addCookieItem(productId, action){
     console.log('Not logged in..')
 
-    if(action == 'add'){
-        
-        if(cart[productId] == undefined){
+    if(action === 'add'){
+        if(!cart[productId]){
             cart[productId] = {'quantity':1}
         }else{
             cart[productId]['quantity'] += 1
         }
     }
 
-    if(action == 'remove'){
+    if(action === 'remove'){
         cart[productId]['quantity'] -= 1
 
         if(cart[productId]['quantity'] <= 0){
@@ -41,47 +36,19 @@ function addCookieItem(productId, action){
     }
     console.log('Cart:', cart)
     document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/"
-    // location.reload()
-
 }
-
-function updateUserOrder(productId, action){
-    console.log('User is logged in, sending data...')
-
-    var url = '/update_item/'
-
-    fetch(url, {
-        method: 'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRFToken':csrftoken,
-        },
-        body:JSON.stringify({'productId': productId, 'action':action})
-    })
-
-    .then((response) =>{
-        return response.json()
-    })
-
-    .then((data) =>{
-        console.log('data:', data)
-        // location.reload()
-    })
-}
-
 
 function addToCartV2(itemId) {
     fetch(`/add-to-cart/${itemId}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),  // Include CSRF token if required
+            'X-CSRFToken': getCookie('csrftoken'),
         },
         body: JSON.stringify({}),
     })
     .then(response => response.json())
     .then(data => {
-        // Update the cart UI or perform any other necessary actions
         console.log(data);
     })
     .catch(error => {
@@ -89,7 +56,6 @@ function addToCartV2(itemId) {
     });
 }
 
-// Helper function to get CSRF token from cookies
 function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
