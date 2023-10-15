@@ -1,4 +1,6 @@
 const updateBtns = document.getElementsByClassName('update-cart')
+const cartTotal = document.querySelector('#cart-total');
+
 
 for(let i = 0; i < updateBtns.length; i++){
     updateBtns[i].addEventListener('click', function(){
@@ -34,9 +36,16 @@ function addCookieItem(productId, action){
             delete cart[productId]
         }
     }
-    console.log('Cart:', cart)
-    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/"
+
+
+    console.log('Cart:>>>>', cart)
+
+    cartTotal.innerText = Object.keys(cart).length;
+
+    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/";
 }
+
+
 
 function addToCartV2(itemId) {
     fetch(`/add-to-cart/${itemId}/`, {
