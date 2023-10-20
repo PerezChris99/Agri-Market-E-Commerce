@@ -1,4 +1,4 @@
-var updateBtns = document.getElementsByClassName('update-cart')
+const updateBtns = document.getElementsByClassName('update-cart')
 
 for (let i = 0; i < updateBtns.length; i++) {
     updateBtns[i].addEventListener('click', function () {
@@ -37,11 +37,11 @@ function addCookieItem(productId, action) {
             delete cart[productId];
         }
     }
-    console.log('Cart:', cart);
-    
-    // Debugging: Check if the cart cookie is being set
-    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/";
+    console.log('Cart:', cart)
+    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/"
 }
+
+
 
 function addToCartV2(itemId) {
     fetch(`/add-to-cart/${itemId}/`, {

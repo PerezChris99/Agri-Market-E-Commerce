@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import login_required
 from .models import Customer
 
 from django.contrib.auth import authenticate, login, logout
@@ -16,7 +17,7 @@ import json
 import datetime
 from .models import *
 from .utils import cookieCart, cartData, guestOrder
-
+from django.views.decorators.csrf import csrf_exempt
 from .forms import CreateUserForm
 
 def store(request):
@@ -28,6 +29,8 @@ def store(request):
     context = {"products": products}
     return render(request, "store/store.html", context)
 
+
+@login_required(login_url="/login")
 def cart(request):
 
     data = cartData(request)
@@ -46,7 +49,7 @@ def add_to_cart(request, item_id):
     return JsonResponse({'success': True})
 
 
-from django.views.decorators.csrf import csrf_exempt
+
 
 @csrf_exempt
 def checkout(request):
@@ -64,8 +67,8 @@ def updateItem(request):
     productId = data["productId"]
     action = data["action"]
 
-    print("Action:", action)
-    print("productId:", productId)
+    # print("Action:", action)
+    # print("productId:", productId)
 
     customer = Customer.objects.create(name=request.user.username,email=request.user.email,user=request.user)
     product = Product.objects.get(id=productId)
