@@ -1,41 +1,46 @@
-const updateBtns = document.getElementsByClassName('update-cart')
+var updateBtns = document.getElementsByClassName('update-cart')
 
-for(let i = 0; i < updateBtns.length; i++){
-    updateBtns[i].addEventListener('click', function(){
-        const productId = this.dataset.product
-        const action = this.dataset.action
-        console.log('productId:',productId, 'Action:',action)
+for (let i = 0; i < updateBtns.length; i++) {
+    updateBtns[i].addEventListener('click', function () {
+        var productId = this.dataset.product;
+        var action = this.dataset.action;
+        console.log('productId:', productId, 'Action:', action);
 
-        if(user === 'AnonymousUser'){
-            addCookieItem(productId, action)
-        }else{
-            addToCartV2(productId)
-            console.log("added to cart v2")
+        // Debugging: Check the value of 'user'
+        console.log('USER:', user);
+
+        if (user === 'AnonymousUser') {
+            addCookieItem(productId, action);
+        } else {
+            addToCartV2(productId);
+            console.log("added to cart v2");
         }
-    })
+    });
 }
 
-function addCookieItem(productId, action){
-    console.log('Not logged in..')
+function addCookieItem(productId, action) {
+    console.log('Not logged in...');
 
-    if(action === 'add'){
-        if(!cart[productId]){
-            cart[productId] = {'quantity':1}
-        }else{
-            cart[productId]['quantity'] += 1
+    if (action === 'add') {
+        if (!cart[productId]) {
+            cart[productId] = { 'quantity': 1 };
+        } else {
+            cart[productId]['quantity'] += 1;
         }
     }
 
-    if(action === 'remove'){
-        cart[productId]['quantity'] -= 1
+    if (action === 'remove') {
+        cart[productId]['quantity'] -= 1;
 
-        if(cart[productId]['quantity'] <= 0){
-            console.log('Remove Item')
-            delete cart[productId]
+        if (cart[productId]['quantity'] <= 0) {
+            console.log('Remove Item');
+            delete cart[productId];
         }
     }
-    console.log('Cart:', cart)
-    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/"
+    console.log('Cart:', cart);
+    
+    // Debugging: Check if the cart cookie is being set
+    document.cookie = 'cart=' + JSON.stringify(cart) + ";domain=;path=/";
 }
 
 function addToCartV2(itemId) {
@@ -47,13 +52,14 @@ function addToCartV2(itemId) {
         },
         body: JSON.stringify({}),
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            // Debugging: Check the response data
+            console.log('Response Data:', data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
 }
 
 function getCookie(name) {
