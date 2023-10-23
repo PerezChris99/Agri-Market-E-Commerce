@@ -11,7 +11,7 @@ for(let i = 0; i < updateBtns.length; i++){
         if(user === 'AnonymousUser'){
             addCookieItem(productId, action)
         }else{
-            addToCartV2(productId)
+            addCookieItem(productId,action)
             console.log("added to cart v2")
         }
     })

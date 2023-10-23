@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.models import User, auth
 from django.shortcuts import render
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpRequest
 from django.forms import inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
@@ -12,7 +12,7 @@ from django.contrib.auth import authenticate, login, logout
 
 from django.contrib import messages
 
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponseRedirect
 import json
 import datetime
 from .models import *
@@ -55,6 +55,8 @@ def add_to_cart(request, item_id):
 def checkout(request):
     data = cartData(request)
     cartItems = data['cartItems']
+
+    print(data['items'])
     order = data['order']
     items = data['items']
 
@@ -93,12 +95,8 @@ def processOrder(request):
     transaction_id = datetime.datetime.now().timestamp
     data = json.loads(request.body)
 
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
 
-    else:
-        customer, order = guestOrder(request, data)
+    customer, order = guestOrder(request, data)
        
     total = float(data["form"]["total"])
     order.transaction_id = transaction_id
@@ -106,6 +104,8 @@ def processOrder(request):
     if total == float(order.get_cart_total):
         order.complete = True
     order.save()
+
+    print(request.COOKIES.get('cart'))
 
     if order.shipping == True:
         ShippingAddress.objects.create(
@@ -118,7 +118,11 @@ def processOrder(request):
             country=data["shipping"]["country"],
         )
 
-    return JsonResponse("Payment complete!..", safe=False)
+    response = HttpResponseRedirect(redirect_to='/')
+
+    response.delete_cookie('cart')
+
+    return response
 
 def registerPage(request):
     form = CreateUserForm()
@@ -134,7 +138,7 @@ def registerPage(request):
     context = {'form':form}
     return render(request, 'store/register.html', context)
 
-def loginPage(request):
+def loginPage(request:HttpRequest):
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -144,6 +148,11 @@ def loginPage(request):
 
         if user is not None:
             login(request, user)
+
+            path = request.GET.get('next')
+
+            if path is not None:
+                return redirect(path)
             return redirect('store')
             
     context = {}
