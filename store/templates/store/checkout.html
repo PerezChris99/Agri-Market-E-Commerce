@@ -4,6 +4,10 @@
 
 {% block title %}Checkout - Agri-Market{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/checkout.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -149,8 +153,8 @@
                     <div class="payment-option mb-3" data-method="mtn">
                         <input type="radio" class="btn-check" name="payment_method" id="pay-mtn" value="mtn" autocomplete="off">
                         <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-mtn">
-                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #FFCC00, #FFA500); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <span style="font-weight: bold; color: #000;">MTN</span>
+                            <div class="payment-icon mtn me-3">
+                                <span>MTN</span>
                             </div>
                             <div class="flex-grow-1">
                                 <h6 class="mb-0 fw-bold">MTN Mobile Money</h6>
@@ -164,8 +168,8 @@
                     <div class="payment-option mb-3" data-method="airtel">
                         <input type="radio" class="btn-check" name="payment_method" id="pay-airtel" value="airtel" autocomplete="off">
                         <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-airtel">
-                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #E60000, #FF3333); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <span style="font-weight: bold; color: #fff; font-size: 12px;">Airtel</span>
+                            <div class="payment-icon airtel me-3">
+                                <span>Airtel</span>
                             </div>
                             <div class="flex-grow-1">
                                 <h6 class="mb-0 fw-bold">Airtel Money</h6>
@@ -179,8 +183,8 @@
                     <div class="payment-option mb-3" data-method="paypal">
                         <input type="radio" class="btn-check" name="payment_method" id="pay-paypal" value="paypal" autocomplete="off">
                         <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-paypal">
-                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #003087, #009CDE); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <span style="font-weight: bold; color: #fff; font-size: 11px;">PayPal</span>
+                            <div class="payment-icon paypal me-3">
+                                <span>PayPal</span>
                             </div>
                             <div class="flex-grow-1">
                                 <h6 class="mb-0 fw-bold">PayPal / Visa / Mastercard</h6>
@@ -194,7 +198,7 @@
                     <div class="payment-option mb-3" data-method="cod">
                         <input type="radio" class="btn-check" name="payment_method" id="pay-cod" value="cod" autocomplete="off">
                         <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-cod">
-                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #28a745, #218838); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <div class="payment-icon cod me-3">
                                 <i class="bi bi-cash-coin text-white fs-4"></i>
                             </div>
                             <div class="flex-grow-1">
@@ -273,12 +277,11 @@
             </div>
             <div class="card-body">
                 <!-- Order Items -->
-                <div class="order-items mb-4" style="max-height: 300px; overflow-y: auto;">
+                <div class="order-items mb-4">
                     {% for item in items %}
                     <div class="d-flex align-items-center mb-3">
                         <div class="position-relative me-3">
-                            <img src="{{ item.product.imageURL }}" class="rounded" 
-                                 style="width: 60px; height: 60px; object-fit: cover;"
+                            <img src="{{ item.product.imageURL }}" class="rounded order-item-image"
                                  alt="{{ item.product.name }}">
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary">
                                 {{ item.quantity }}
@@ -342,312 +345,22 @@
 <!-- PayPal SDK -->
 <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD"></script>
 
+<!-- Checkout Data for JS -->
 <script>
-    var total = {{ order.get_cart_total }};
-    var shipping = '{{ order.requires_shipping }}' === 'True';
-    var form = document.getElementById('checkout-form');
-    var formButton = document.getElementById('form-button');
-    var paymentInfo = document.getElementById('payment-info');
-    
-    // Convert UGX to USD (approximate rate for PayPal)
-    var usdTotal = (total / 3700).toFixed(2);
-    var selectedPaymentMethod = null;
-
-    // Copy shipping phone to MoMo phone by default
-    document.getElementById('phone').addEventListener('input', function() {
-        document.getElementById('momo-phone').value = this.value;
-        validateMomoPhone();
-    });
-
-    // Form submission - show payment
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Validate form
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
+    window.checkoutData = {
+        total: {{ order.get_cart_total }},
+        shipping: '{{ order.requires_shipping }}' === 'True',
+        csrftoken: '{{ csrf_token }}',
+        storeUrl: '{% url "store" %}',
+        userInfo: {
+            name: '{{ user.get_full_name|default:user.username|escapejs }}',
+            email: '{{ user.email|escapejs }}'
         }
-        
-        formButton.classList.add('d-none');
-        paymentInfo.classList.remove('d-none');
-        
-        // Copy phone to MoMo
-        document.getElementById('momo-phone').value = document.getElementById('phone').value;
-        validateMomoPhone();
-        
-        // Scroll to payment section
-        paymentInfo.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // Payment Method Selection
-    document.querySelectorAll('input[name="payment_method"]').forEach(function(input) {
-        input.addEventListener('change', function() {
-            selectedPaymentMethod = this.value;
-            
-            // Update UI
-            document.querySelectorAll('.payment-card').forEach(function(card) {
-                card.classList.remove('border-success', 'bg-success-subtle');
-                card.querySelector('.payment-check').classList.add('d-none');
-            });
-            
-            var selectedCard = this.nextElementSibling;
-            selectedCard.classList.add('border-success', 'bg-success-subtle');
-            selectedCard.querySelector('.payment-check').classList.remove('d-none');
-            
-            // Show/hide appropriate section
-            document.getElementById('momo-phone-section').classList.add('d-none');
-            document.getElementById('paypal-section').classList.add('d-none');
-            document.getElementById('cod-section').classList.add('d-none');
-            document.getElementById('payment-processing').classList.add('d-none');
-            
-            if (this.value === 'mtn' || this.value === 'airtel') {
-                document.getElementById('momo-phone-section').classList.remove('d-none');
-                validateMomoPhone();
-            } else if (this.value === 'paypal') {
-                document.getElementById('paypal-section').classList.remove('d-none');
-            } else if (this.value === 'cod') {
-                document.getElementById('cod-section').classList.remove('d-none');
-            }
-        });
-    });
-
-    // MoMo phone validation
-    var momoPhoneInput = document.getElementById('momo-phone');
-    momoPhoneInput.addEventListener('input', validateMomoPhone);
-
-    function validateMomoPhone() {
-        var phone = momoPhoneInput.value.replace(/\s/g, '');
-        var hint = document.getElementById('momo-provider-hint');
-        var payBtn = document.getElementById('momo-pay-btn');
-        
-        if (phone.length === 9) {
-            var prefix = phone.substring(0, 3);
-            var mtnPrefixes = ['076', '077', '078'];
-            var airtelPrefixes = ['070', '074', '075'];
-            
-            if (mtnPrefixes.some(p => phone.startsWith(p))) {
-                hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>MTN Mobile Money number detected';
-                payBtn.disabled = false;
-                payBtn.className = 'btn btn-warning btn-lg w-100';
-            } else if (airtelPrefixes.some(p => phone.startsWith(p))) {
-                hint.innerHTML = '<i class="bi bi-check-circle text-danger me-1"></i>Airtel Money number detected';
-                payBtn.disabled = false;
-                payBtn.className = 'btn btn-danger btn-lg w-100';
-            } else {
-                hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Unknown mobile network';
-                payBtn.disabled = true;
-            }
-        } else {
-            hint.innerHTML = 'Enter 9 digits (e.g., 772 123 456)';
-            payBtn.disabled = true;
-        }
-    }
-
-    // Mobile Money Payment
-    document.getElementById('momo-pay-btn').addEventListener('click', function() {
-        var phone = '256' + document.getElementById('momo-phone').value.replace(/\s/g, '');
-        
-        // Show processing
-        document.getElementById('momo-phone-section').classList.add('d-none');
-        document.getElementById('payment-processing').classList.remove('d-none');
-        document.getElementById('payment-status-msg').textContent = 'Sending payment request to ' + phone + '...';
-        
-        // Initiate Mobile Money Payment
-        fetch('/api/momo/initiate/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-            },
-            body: JSON.stringify({
-                'phone': phone,
-                'amount': total,
-                'provider': selectedPaymentMethod
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('payment-status-msg').textContent = 'Payment prompt sent! Please check your phone and enter your PIN.';
-                
-                // Poll for payment status
-                pollPaymentStatus(data.payment_id, data.reference);
-            } else {
-                document.getElementById('payment-processing').classList.add('d-none');
-                document.getElementById('momo-phone-section').classList.remove('d-none');
-                showToast('Error: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('payment-processing').classList.add('d-none');
-            document.getElementById('momo-phone-section').classList.remove('d-none');
-            showToast('An error occurred. Please try again.', 'error');
-        });
-    });
-
-    function pollPaymentStatus(paymentId, reference) {
-        var pollCount = 0;
-        var maxPolls = 60; // 2 minutes max
-        
-        var pollInterval = setInterval(function() {
-            pollCount++;
-            
-            fetch('/api/momo/status/?payment_id=' + paymentId)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'successful') {
-                    clearInterval(pollInterval);
-                    submitFormData(reference, selectedPaymentMethod);
-                } else if (data.status === 'failed') {
-                    clearInterval(pollInterval);
-                    document.getElementById('payment-processing').classList.add('d-none');
-                    document.getElementById('momo-phone-section').classList.remove('d-none');
-                    showToast('Payment failed: ' + (data.message || 'Transaction declined'), 'error');
-                } else if (pollCount >= maxPolls) {
-                    clearInterval(pollInterval);
-                    document.getElementById('payment-processing').classList.add('d-none');
-                    document.getElementById('momo-phone-section').classList.remove('d-none');
-                    showToast('Payment timed out. Please try again.', 'error');
-                } else {
-                    document.getElementById('payment-status-msg').textContent = 'Waiting for confirmation... (' + pollCount + 's)';
-                }
-            })
-            .catch(error => {
-                console.error('Poll error:', error);
-            });
-        }, 2000); // Poll every 2 seconds
-    }
-
-    // Cash on Delivery
-    document.getElementById('cod-btn').addEventListener('click', function() {
-        submitFormData('COD-' + Date.now(), 'cod');
-    });
-
-    // PayPal Buttons
-    paypal.Buttons({
-        style: {
-            shape: 'pill',
-            color: 'gold',
-            layout: 'vertical',
-            label: 'pay'
-        },
-
-        createOrder: function(data, actions) {
-            return actions.order.create({
-                purchase_units: [{
-                    amount: {
-                        value: usdTotal
-                    },
-                    description: 'Agri-Market Order'
-                }]
-            });
-        },
-
-        onApprove: function(data, actions) {
-            return actions.order.capture().then(function(details) {
-                // Payment successful - process order
-                submitFormData(details.id, 'paypal');
-            });
-        },
-
-        onError: function(err) {
-            console.error('PayPal Error:', err);
-            showToast('Payment failed. Please try again.', 'error');
-        }
-    }).render('#paypal-button-container');
-
-    function submitFormData(transactionId, paymentMethod) {
-        document.getElementById('payment-processing').classList.remove('d-none');
-        document.getElementById('payment-status-msg').textContent = 'Creating your order...';
-        
-        var userFormData = {
-            'name': document.getElementById('name')?.value || '{{ user.get_full_name|default:user.username }}',
-            'email': document.getElementById('email')?.value || '{{ user.email }}',
-            'total': total,
-        };
-
-        var shippingInfo = {
-            'phone': '256' + document.getElementById('phone').value.replace(/\s/g, ''),
-            'address': document.getElementById('address').value,
-            'city': document.getElementById('city').value,
-            'region': document.getElementById('region').value,
-            'zipcode': document.getElementById('zipcode').value,
-            'country': document.getElementById('country').value,
-            'landmark': document.getElementById('landmark')?.value || '',
-        };
-
-        fetch('/process_order/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-            },
-            body: JSON.stringify({
-                'form': userFormData,
-                'shipping': shippingInfo,
-                'transaction_id': transactionId,
-                'payment_method': paymentMethod
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Clear cart cookie
-                document.cookie = 'cart={}; domain=; path=/';
-                
-                // Show success
-                document.getElementById('payment-status-msg').innerHTML = 
-                    '<i class="bi bi-check-circle-fill text-success me-2"></i>Order placed successfully! Order ID: <strong>' + data.order_id + '</strong>';
-                
-                showToast('Order placed successfully! Redirecting...', 'success');
-                
-                setTimeout(function() {
-                    window.location.href = '{% url "store" %}?order=' + data.order_id;
-                }, 2000);
-            } else {
-                document.getElementById('payment-processing').classList.add('d-none');
-                showToast('Error: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('payment-processing').classList.add('d-none');
-            showToast('An error occurred. Please try again.', 'error');
-        });
-    }
-
-    function showToast(message, type) {
-        var toast = document.createElement('div');
-        toast.className = 'position-fixed bottom-0 end-0 p-3';
-        toast.style.zIndex = '11';
-        toast.innerHTML = `
-            <div class="toast show align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'}" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(function() { toast.remove(); }, 5000);
-    }
+    };
 </script>
 
-<style>
-    .payment-card {
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .payment-card:hover {
-        border-color: #198754 !important;
-        background-color: rgba(25, 135, 84, 0.05);
-    }
-    .payment-card.border-success {
-        border-width: 2px !important;
-    }
-</style>
+<!-- External Checkout JS -->
+<script src="{% static 'js/checkout.js' %}"></script>
 {% endblock %}
 
 {% endblock content %}

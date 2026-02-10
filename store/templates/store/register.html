@@ -4,73 +4,7 @@
 {% block title %}Register - Agri-Market{% endblock %}
 
 {% block extra_css %}
-<style>
-    .auth-container {
-        min-height: 70vh;
-        display: flex;
-        align-items: center;
-        padding: 2rem 0;
-    }
-    .auth-card {
-        background: white;
-        border-radius: 24px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(46, 125, 50, 0.15);
-    }
-    .auth-header {
-        background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
-        padding: 2rem;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-    .auth-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-    }
-    .auth-icon {
-        width: 70px;
-        height: 70px;
-        background: rgba(255,255,255,0.15);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        font-size: 1.75rem;
-        backdrop-filter: blur(10px);
-    }
-    .form-floating label {
-        color: var(--text-muted);
-    }
-    .benefits-list {
-        background: linear-gradient(135deg, var(--cream-light), var(--cream));
-        border-radius: 16px;
-        padding: 1.5rem;
-    }
-    .benefit-item {
-        display: flex;
-        align-items: center;
-        padding: 0.5rem 0;
-    }
-    .benefit-item i {
-        width: 32px;
-        height: 32px;
-        background: var(--agri-green-gradient);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        margin-right: 1rem;
-        flex-shrink: 0;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -118,22 +52,22 @@
                                 <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ form.password2.errors.0 }}</div>
                                 {% endif %}
                             </div>
-                            <div class="form-check mb-4">
-                                <input type="checkbox" class="form-check-input" id="terms" style="border-color: var(--agri-green);" required>
+                            <div class="form-check auth-form-check mb-4">
+                                <input type="checkbox" class="form-check-input" id="terms" required>
                                 <label class="form-check-label" for="terms">
-                                    I agree to the <a href="#" style="color: var(--agri-green);">Terms</a> and <a href="#" style="color: var(--agri-green);">Privacy Policy</a>
+                                    I agree to the <a href="#" class="auth-link">Terms</a> and <a href="#" class="auth-link">Privacy Policy</a>
                                 </label>
                             </div>
                             <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-lg" style="background: var(--agri-green-gradient); color: white; padding: 0.9rem;">
+                                <button type="submit" class="btn btn-lg auth-submit-btn">
                                     <i class="bi bi-check2-circle me-2"></i>Create Account
                                 </button>
                             </div>
                         </form>
                         
-                        <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border-light);">
+                        <div class="text-center mt-4 pt-3 auth-divider">
                             <span class="text-muted">Already have an account?</span>
-                            <a href="{% url 'login' %}" class="fw-600 text-decoration-none ms-1" style="color: var(--agri-green);">
+                            <a href="{% url 'login' %}" class="auth-link ms-1">
                                 Sign In <i class="bi bi-arrow-right"></i>
                             </a>
                         </div>
@@ -143,8 +77,8 @@
             
             <!-- Benefits Section -->
             <div class="col-lg-4 d-none d-lg-block">
-                <div class="benefits-list fade-in-up" style="animation-delay: 0.2s;">
-                    <h5 class="mb-4" style="color: var(--agri-green-dark);">Why Join Us?</h5>
+                <div class="benefits-list fade-in-up">
+                    <h5 class="mb-4">Why Join Us?</h5>
                     <div class="benefit-item">
                         <i class="bi bi-truck"></i>
                         <span>Free delivery on orders above UGX 100,000</span>

@@ -4,64 +4,7 @@
 {% block title %}Login - Agri-Market{% endblock %}
 
 {% block extra_css %}
-<style>
-    .auth-container {
-        min-height: 70vh;
-        display: flex;
-        align-items: center;
-    }
-    .auth-card {
-        background: white;
-        border-radius: 24px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(46, 125, 50, 0.15);
-    }
-    .auth-header {
-        background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
-        padding: 2.5rem 2rem;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-    .auth-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-    }
-    .auth-header h4 {
-        position: relative;
-        z-index: 1;
-    }
-    .auth-icon {
-        width: 80px;
-        height: 80px;
-        background: rgba(255,255,255,0.15);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        font-size: 2rem;
-        backdrop-filter: blur(10px);
-    }
-    .form-floating label {
-        color: var(--text-muted);
-    }
-    .form-floating .form-control:focus ~ label {
-        color: var(--agri-green);
-    }
-    .decorative-leaf {
-        position: absolute;
-        font-size: 3rem;
-        opacity: 0.1;
-    }
-    .leaf-1 { top: 10%; left: 5%; transform: rotate(-15deg); }
-    .leaf-2 { bottom: 10%; right: 5%; transform: rotate(25deg); }
-</style>
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -91,22 +34,22 @@
                                 <label for="password"><i class="bi bi-key me-2"></i>Password</label>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-4">
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" id="remember" style="border-color: var(--agri-green);">
+                                <div class="form-check auth-form-check">
+                                    <input type="checkbox" class="form-check-input" id="remember">
                                     <label class="form-check-label" for="remember">Remember me</label>
                                 </div>
-                                <a href="#" class="text-decoration-none" style="color: var(--agri-green);">Forgot password?</a>
+                                <a href="#" class="auth-link">Forgot password?</a>
                             </div>
                             <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-lg" style="background: var(--agri-green-gradient); color: white; padding: 0.9rem;">
+                                <button type="submit" class="btn btn-lg auth-submit-btn">
                                     <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                                 </button>
                             </div>
                         </form>
                         
-                        <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border-light);">
+                        <div class="text-center mt-4 pt-3 auth-divider">
                             <span class="text-muted">New to Agri-Market?</span>
-                            <a href="{% url 'register' %}" class="fw-600 text-decoration-none ms-1" style="color: var(--agri-green);">
+                            <a href="{% url 'register' %}" class="auth-link ms-1">
                                 Create account <i class="bi bi-arrow-right"></i>
                             </a>
                         </div>

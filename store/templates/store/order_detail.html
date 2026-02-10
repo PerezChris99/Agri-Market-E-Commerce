@@ -4,6 +4,10 @@
 
 {% block title %}Order #{{ order.order_id }} - Agri-Market{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/order-detail.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -97,8 +101,7 @@
                                 <td>
                                     <div class="d-flex align-items-center">
                                         {% if item.product %}
-                                        <img src="{{ item.product.imageURL }}" class="rounded me-3" 
-                                             style="width: 50px; height: 50px; object-fit: cover;"
+                                        <img src="{{ item.product.imageURL }}" class="rounded me-3 order-item-img"
                                              alt="{{ item.product.name }}">
                                         <div>
                                             <strong>{{ item.product.name }}</strong>
@@ -162,7 +165,7 @@
                 {% if order.transaction_id %}
                 <div class="d-flex justify-content-between">
                     <span class="text-muted">Transaction ID:</span>
-                    <small class="text-truncate" style="max-width: 150px;" title="{{ order.transaction_id }}">
+                    <small class="text-truncate transaction-id" title="{{ order.transaction_id }}">
                         {{ order.transaction_id }}
                     </small>
                 </div>
@@ -205,23 +208,4 @@
         </div>
     </div>
 </div>
-
-<style>
-.progress-step {
-    position: relative;
-    opacity: 0.5;
-}
-.progress-step.active {
-    opacity: 1;
-}
-.progress-step .step-icon {
-    font-size: 1.5rem;
-    color: var(--bs-success);
-}
-.progress-step small {
-    display: block;
-    margin-top: 0.5rem;
-}
-</style>
-
 {% endblock %}

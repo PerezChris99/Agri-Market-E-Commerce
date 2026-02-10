@@ -83,6 +83,27 @@ body::before {
     z-index: -1;
 }
 
+/* ===== Full-Width Layout ===== */
+.container {
+    max-width: 100% !important;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (min-width: 1400px) {
+    .container {
+        padding-left: 4rem;
+        padding-right: 4rem;
+    }
+}
+
 /* ===== Typography ===== */
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', Georgia, serif;
@@ -767,6 +788,7 @@ footer {
     color: var(--cream);
     margin-top: auto;
     position: relative;
+    font-size: 0.9rem;
 }
 
 footer::before {
@@ -775,14 +797,68 @@ footer::before {
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 3px;
     background: linear-gradient(90deg, var(--agri-green), var(--gold), var(--agri-green));
 }
 
-footer h5 {
+.footer-title {
     color: white;
     font-family: 'Playfair Display', serif;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.footer-icon {
+    font-size: 1.1rem;
+}
+
+.footer-text {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.875rem;
+}
+
+.footer-links {
+    margin: 0;
+    padding: 0;
+}
+
+.footer-links li {
+    margin-bottom: 0.4rem;
+}
+
+.footer-links a {
+    color: var(--cream-dark);
+    text-decoration: none;
+    transition: var(--transition-fast);
+    font-size: 0.875rem;
+}
+
+.footer-links a i {
+    font-size: 0.7rem;
+    margin-right: 0.25rem;
+}
+
+.footer-links a:hover {
+    color: var(--gold) !important;
+    padding-left: 3px;
+}
+
+.footer-contact {
+    margin: 0;
+    padding: 0;
+}
+
+.footer-contact li {
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 0.4rem;
+    font-size: 0.875rem;
+}
+
+.footer-contact i {
+    width: 18px;
+    margin-right: 0.5rem;
+    color: var(--gold);
 }
 
 footer a {
@@ -793,32 +869,30 @@ footer a {
 
 footer a:hover {
     color: var(--gold) !important;
-    padding-left: 5px;
 }
 
 footer .social-links a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
-    margin-right: 0.5rem;
-    font-size: 1.1rem;
+    margin-right: 0.4rem;
+    font-size: 0.9rem;
     transition: var(--transition-normal);
 }
 
 footer .social-links a:hover {
     background: var(--agri-green);
-    transform: translateY(-3px);
-    padding-left: 0;
+    transform: translateY(-2px);
 }
 
 .footer-bottom {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 1.5rem;
-    margin-top: 2rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
 }
 
 /* ===== Toast Notifications ===== */

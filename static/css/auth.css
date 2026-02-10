@@ -1,0 +1,245 @@
+/* ===== Auth Pages Styles ===== */
+/* Agri-Market Uganda - Register & Login Pages */
+
+:root {
+    --agri-green: #2E7D32;
+    --agri-green-dark: #1B5E20;
+    --agri-green-light: #4CAF50;
+    --agri-green-gradient: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
+    --cream: #faf8f5;
+    --cream-light: #fff9f0;
+    --border-light: #e9ecef;
+    --text-muted: #6c757d;
+}
+
+/* Auth Container */
+.auth-container {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    padding: 2rem 0;
+}
+
+/* Auth Card */
+.auth-card {
+    background: white;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(46, 125, 50, 0.15);
+}
+
+/* Auth Header */
+.auth-header {
+    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+}
+
+/* Auth Icon */
+.auth-icon {
+    width: 70px;
+    height: 70px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    backdrop-filter: blur(10px);
+}
+
+/* Form Styling */
+.form-floating label {
+    color: var(--text-muted);
+}
+
+/* Benefits List */
+.benefits-list {
+    background: linear-gradient(135deg, var(--cream-light), var(--cream));
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.benefits-list h5 {
+    color: var(--agri-green-dark);
+}
+
+/* Benefit Item */
+.benefit-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.benefit-item i {
+    width: 32px;
+    height: 32px;
+    background: var(--agri-green-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+/* Auth Submit Button */
+.auth-submit-btn {
+    background: var(--agri-green-gradient);
+    color: white;
+    padding: 0.9rem;
+    border: none;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.auth-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(46, 125, 50, 0.3);
+    color: white;
+}
+
+/* Auth Links */
+.auth-link {
+    color: var(--agri-green);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-link:hover {
+    color: var(--agri-green-dark);
+    text-decoration: underline;
+}
+
+/* Auth Form Check */
+.auth-form-check .form-check-input {
+    border-color: var(--agri-green);
+}
+
+.auth-form-check .form-check-input:checked {
+    background-color: var(--agri-green);
+    border-color: var(--agri-green);
+}
+
+/* Auth Divider */
+.auth-divider {
+    border-top: 1px solid var(--border-light);
+}
+
+/* Fade Animation */
+.fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Social Login Buttons */
+.social-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: white;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.social-login-btn:hover {
+    background: #f8f9fa;
+    color: #333;
+    border-color: #ccc;
+}
+
+.social-login-btn i {
+    font-size: 1.25rem;
+}
+
+/* Password Visibility Toggle */
+.password-toggle {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    z-index: 10;
+}
+
+.password-toggle:hover {
+    color: var(--agri-green);
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .auth-container {
+        padding: 1rem 0;
+    }
+    
+    .auth-card {
+        border-radius: 16px;
+    }
+    
+    .auth-header {
+        padding: 1.5rem;
+    }
+    
+    .auth-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 575px) {
+    .auth-container {
+        min-height: auto;
+        padding: 0.5rem 0;
+    }
+}
+
+/* Decorative Elements */
+.decorative-leaf {
+    position: absolute;
+    font-size: 3rem;
+    opacity: 0.1;
+}
+
+.leaf-1 {
+    top: 10%;
+    left: 5%;
+    transform: rotate(-15deg);
+}
+
+.leaf-2 {
+    bottom: 10%;
+    right: 5%;
+    transform: rotate(25deg);
+}

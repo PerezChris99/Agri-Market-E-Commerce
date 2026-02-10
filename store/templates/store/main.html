@@ -102,7 +102,7 @@
 
         <ul class="navbar-nav ms-auto align-items-center">
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'store' %}"><i class="bi bi-house-door me-1"></i>Home</a>
+            <a class="nav-link" href="{% url 'homepage' %}"><i class="bi bi-house-door me-1"></i>Home</a>
           </li>
           
           <!-- Categories Dropdown -->
@@ -172,63 +172,65 @@
   {% endif %}
 
   <!-- Main Content -->
-  <main class="py-4">
+  <main class="{% block main_class %}py-4{% endblock %}">
+    {% block content_wrapper %}
     <div class="container">
       {% block content %}
       {% endblock content %}
     </div>
+    {% endblock content_wrapper %}
   </main>
 
   <!-- Footer -->
-  <footer class="py-5 mt-5">
+  <footer class="py-4 mt-4">
     <div class="container">
       <div class="row">
-        <div class="col-lg-4 mb-4">
-          <h5><span style="font-size: 1.5rem;">🌾</span> Agri-Market</h5>
-          <p style="color: rgba(255,255,255,0.7);">Uganda's premier marketplace for agricultural products. Connecting farmers directly to buyers since 2024.</p>
-          <div class="social-links mt-3">
+        <div class="col-lg-4 mb-3">
+          <h6 class="footer-title"><span class="footer-icon">🌾</span> Agri-Market</h6>
+          <p class="footer-text mb-2">Uganda's premier marketplace for agricultural products. Connecting farmers directly to buyers since 2024.</p>
+          <div class="social-links">
             <a href="#"><i class="bi bi-facebook"></i></a>
             <a href="#"><i class="bi bi-twitter-x"></i></a>
             <a href="#"><i class="bi bi-instagram"></i></a>
             <a href="#"><i class="bi bi-whatsapp"></i></a>
           </div>
         </div>
-        <div class="col-6 col-lg-2 mb-4">
-          <h5>Quick Links</h5>
-          <ul class="list-unstyled">
-            <li class="mb-2"><a href="{% url 'store' %}"><i class="bi bi-chevron-right me-1"></i>Home</a></li>
-            <li class="mb-2"><a href="{% url 'store' %}"><i class="bi bi-chevron-right me-1"></i>Products</a></li>
-            <li class="mb-2"><a href="{% url 'cart' %}"><i class="bi bi-chevron-right me-1"></i>Cart</a></li>
-            <li class="mb-2"><a href="#"><i class="bi bi-chevron-right me-1"></i>About Us</a></li>
+        <div class="col-6 col-lg-2 mb-3">
+          <h6 class="footer-title">Quick Links</h6>
+          <ul class="list-unstyled footer-links">
+            <li><a href="{% url 'homepage' %}"><i class="bi bi-chevron-right"></i>Home</a></li>
+            <li><a href="{% url 'store' %}"><i class="bi bi-chevron-right"></i>Products</a></li>
+            <li><a href="{% url 'cart' %}"><i class="bi bi-chevron-right"></i>Cart</a></li>
+            <li><a href="#"><i class="bi bi-chevron-right"></i>About Us</a></li>
           </ul>
         </div>
-        <div class="col-6 col-lg-3 mb-4">
-          <h5>Categories</h5>
-          <ul class="list-unstyled">
+        <div class="col-6 col-lg-3 mb-3">
+          <h6 class="footer-title">Categories</h6>
+          <ul class="list-unstyled footer-links">
             {% for category in all_categories|slice:":5" %}
-            <li class="mb-2"><a href="{% url 'store' %}?category={{ category.slug }}"><i class="bi bi-chevron-right me-1"></i>{{ category.name }}</a></li>
+            <li><a href="{% url 'store' %}?category={{ category.slug }}"><i class="bi bi-chevron-right"></i>{{ category.name }}</a></li>
             {% empty %}
-            <li class="mb-2" style="color: rgba(255,255,255,0.5);">No categories yet</li>
+            <li class="footer-text">No categories yet</li>
             {% endfor %}
           </ul>
         </div>
-        <div class="col-lg-3 mb-4">
-          <h5>Contact Us</h5>
-          <ul class="list-unstyled" style="color: rgba(255,255,255,0.7);">
-            <li class="mb-2"><i class="bi bi-geo-alt-fill me-2"></i>Kampala, Uganda</li>
-            <li class="mb-2"><i class="bi bi-telephone-fill me-2"></i>+256 700 000 000</li>
-            <li class="mb-2"><i class="bi bi-envelope-fill me-2"></i>info@agrimarket.ug</li>
-            <li class="mb-2"><i class="bi bi-clock-fill me-2"></i>Mon-Sat: 8AM - 6PM</li>
+        <div class="col-lg-3 mb-3">
+          <h6 class="footer-title">Contact Us</h6>
+          <ul class="list-unstyled footer-contact">
+            <li><i class="bi bi-geo-alt-fill"></i>Kampala, Uganda</li>
+            <li><i class="bi bi-telephone-fill"></i>+256 700 000 000</li>
+            <li><i class="bi bi-envelope-fill"></i>info@agrimarket.ug</li>
+            <li><i class="bi bi-clock-fill"></i>Mon-Sat: 8AM - 6PM</li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <div class="row align-items-center">
           <div class="col-md-6 text-center text-md-start">
-            <p class="mb-0" style="color: rgba(255,255,255,0.6);">&copy; 2024 Agri-Market. Empowering Ugandan Farmers 🇺🇬</p>
+            <span class="footer-text">&copy; 2024 Agri-Market. Empowering Ugandan Farmers 🇺🇬</span>
           </div>
-          <div class="col-md-6 text-center text-md-end mt-3 mt-md-0">
-            <span style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Secure Payments via MTN, Airtel & PayPal</span>
+          <div class="col-md-6 text-center text-md-end">
+            <span class="footer-text">Secure Payments: MTN | Airtel | PayPal</span>
           </div>
         </div>
       </div>

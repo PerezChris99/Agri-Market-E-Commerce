@@ -35,10 +35,10 @@ def homepage(request):
     data = cartData(request)
     cartItems = data['cartItems']
     
-    # Get all active categories with product count
+    # Get all active categories with product count (limited to 6 for homepage)
     categories = Category.objects.filter(is_active=True).annotate(
         product_count=Count('products', filter=Q(products__is_active=True))
-    )[:12]
+    )[:6]
     
     # Get featured products
     featured_products = Product.objects.filter(
@@ -60,10 +60,10 @@ def homepage(request):
         product.avg_rating = int(reviews.aggregate(Avg('rating'))['rating__avg'] or 0)
         product.review_count = reviews.count()
     
-    # Get latest products
+    # Get latest products (limited to 4 for homepage)
     latest_products = Product.objects.filter(
         is_active=True
-    ).order_by('-created_at').select_related('category')[:8]
+    ).order_by('-created_at').select_related('category')[:4]
     
     for product in latest_products:
         reviews = product.reviews.all()

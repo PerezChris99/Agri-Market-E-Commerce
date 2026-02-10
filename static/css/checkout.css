@@ -1,0 +1,205 @@
+/* ===== Checkout Page Styles ===== */
+/* Agri-Market Uganda - External CSS */
+
+/* Payment Method Cards */
+.payment-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+.payment-card:hover {
+    border-color: #198754 !important;
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.payment-card.border-success {
+    border-width: 2px !important;
+}
+
+/* Payment Icons */
+.payment-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.payment-icon.mtn {
+    background: linear-gradient(135deg, #FFCC00, #FFA500);
+}
+
+.payment-icon.mtn span {
+    font-weight: bold;
+    color: #000;
+}
+
+.payment-icon.airtel {
+    background: linear-gradient(135deg, #E60000, #FF3333);
+}
+
+.payment-icon.airtel span {
+    font-weight: bold;
+    color: #fff;
+    font-size: 12px;
+}
+
+.payment-icon.paypal {
+    background: linear-gradient(135deg, #003087, #009CDE);
+}
+
+.payment-icon.paypal span {
+    font-weight: bold;
+    color: #fff;
+    font-size: 11px;
+}
+
+.payment-icon.cod {
+    background: linear-gradient(135deg, #28a745, #218838);
+}
+
+/* Order Items Section */
+.order-items {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.order-item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Processing State */
+.checkout-processing {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.checkout-processing::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 1000;
+}
+
+/* Mobile Money Section */
+.momo-phone-input {
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+/* Order Summary Sticky */
+@media (min-width: 992px) {
+    .order-summary-card {
+        position: sticky;
+        top: 100px;
+    }
+}
+
+/* Delivery Zones Info */
+.delivery-info-card {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: none;
+    border-radius: 12px;
+}
+
+/* Toast Notifications */
+.checkout-toast {
+    z-index: 1100;
+}
+
+/* Payment Confirmation Modal */
+.payment-modal .modal-content {
+    border-radius: 16px;
+    border: none;
+}
+
+.payment-modal .modal-header {
+    background: linear-gradient(135deg, #28a745, #218838);
+    color: white;
+    border-radius: 16px 16px 0 0;
+}
+
+/* Success Animation */
+@keyframes checkmark {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.success-checkmark {
+    animation: checkmark 0.5s ease-out;
+}
+
+/* Form Validation States */
+.form-control.is-valid,
+.form-select.is-valid {
+    border-color: #198754;
+    background-image: none;
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545;
+}
+
+/* Phone Number Formatting */
+.phone-input-group .input-group-text {
+    background: #f8f9fa;
+    border-right: none;
+}
+
+.phone-input-group .form-control {
+    border-left: none;
+}
+
+.phone-input-group .form-control:focus {
+    border-color: #ced4da;
+    box-shadow: none;
+}
+
+/* Loading Button */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767px) {
+    .payment-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .order-item-image {
+        width: 50px;
+        height: 50px;
+    }
+}
