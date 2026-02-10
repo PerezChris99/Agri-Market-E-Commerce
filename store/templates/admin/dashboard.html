@@ -1,30 +1,25 @@
-{% extends "admin/base_site.html" %}
 {% load static %}
 {% load humanize %}
-
-{% block title %}Dashboard - Agri-Market Admin{% endblock %}
-
-{% block extrahead %}
-{{ block.super }}
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<!-- Leaflet.js for Maps -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Leaflet Heat -->
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-<!-- External Dashboard CSS -->
-<link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
-{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Agri-Market Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}">
+</head>
+<body>
 <div class="dashboard-container">
     <!-- Header -->
     <div class="dashboard-header">
         <div class="dashboard-header-content">
             <div>
                 <h1>🌾 Agri-Market Dashboard</h1>
-                <p>Welcome back! Here's what's happening with your marketplace today.</p>
+                <p>Welcome back! Here's your marketplace overview.</p>
             </div>
             <div class="live-indicator">
                 <span class="live-dot"></span>
@@ -36,120 +31,102 @@
     <!-- Quick Actions -->
     <div class="quick-actions">
         <a href="/admin/store/product/add/" class="quick-action-btn">
-            <span>➕</span> Add Product
+            <i class="bi bi-plus-lg"></i> Add Product
         </a>
-        <a href="/admin/store/order/?status=pending" class="quick-action-btn">
-            <span>📋</span> Pending Orders
+        <a href="/admin/store/order/" class="quick-action-btn">
+            <i class="bi bi-box-seam"></i> Orders
         </a>
         <a href="/admin/store/customer/" class="quick-action-btn">
-            <span>👥</span> Customers
+            <i class="bi bi-people"></i> Customers
         </a>
-        <a href="/admin/store/delivery/" class="quick-action-btn">
-            <span>🚚</span> Deliveries
+        <a href="/admin/store/category/" class="quick-action-btn">
+            <i class="bi bi-grid"></i> Categories
         </a>
-        <a href="/admin/store/review/" class="quick-action-btn">
-            <span>⭐</span> Reviews
+        <a href="/admin/" class="quick-action-btn">
+            <i class="bi bi-gear"></i> Admin Panel
+        </a>
+        <a href="/" class="quick-action-btn">
+            <i class="bi bi-shop"></i> View Shop
         </a>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- Stats Grid -->
     <div class="stats-grid">
         <div class="stat-card green">
             <div class="stat-icon">💰</div>
-            <div class="stat-value">UGX {{ total_revenue|intcomma }}</div>
-            <div class="stat-label">Total Revenue</div>
-            <span class="stat-change up">↑ {{ revenue_change }}% this month</span>
+            <div class="stat-value">{{ total_revenue|intcomma }}</div>
+            <div class="stat-label">Revenue (UGX)</div>
         </div>
         <div class="stat-card blue">
             <div class="stat-icon">📦</div>
             <div class="stat-value">{{ total_orders|intcomma }}</div>
             <div class="stat-label">Total Orders</div>
-            <span class="stat-change up">↑ {{ orders_change }}% this month</span>
         </div>
         <div class="stat-card gold">
             <div class="stat-icon">👥</div>
             <div class="stat-value">{{ total_customers|intcomma }}</div>
-            <div class="stat-label">Registered Customers</div>
-            <span class="stat-change up">↑ {{ customers_change }} new</span>
+            <div class="stat-label">Customers</div>
         </div>
         <div class="stat-card purple">
             <div class="stat-icon">🛒</div>
             <div class="stat-value">{{ total_products }}</div>
-            <div class="stat-label">Active Products</div>
+            <div class="stat-label">Products</div>
         </div>
         <div class="stat-card orange">
-            <div class="stat-icon">🚚</div>
-            <div class="stat-value">{{ active_deliveries }}</div>
-            <div class="stat-label">Active Deliveries</div>
+            <div class="stat-icon">✅</div>
+            <div class="stat-value">{{ delivered_orders }}</div>
+            <div class="stat-label">Delivered</div>
         </div>
         <div class="stat-card red">
             <div class="stat-icon">⏳</div>
             <div class="stat-value">{{ pending_orders }}</div>
-            <div class="stat-label">Pending Orders</div>
+            <div class="stat-label">Pending</div>
         </div>
     </div>
 
-    <!-- Map Type Switcher -->
-    <div class="map-switcher">
-        <button class="map-switch-btn active" data-map="orderDensity">
-            <i class="bi bi-fire"></i> Order Heatmap
-        </button>
-        <button class="map-switch-btn" data-map="deliveryTracking">
-            <i class="bi bi-truck"></i> Live Deliveries
-        </button>
-        <button class="map-switch-btn" data-map="farmerLocations">
-            <i class="bi bi-geo-alt"></i> Farmer Locations
-        </button>
-        <button class="map-switch-btn" data-map="coverageMap">
-            <i class="bi bi-map"></i> Delivery Coverage
-        </button>
-    </div>
-
-    <!-- Charts Row 1 -->
+    <!-- Charts Row 1: Sales + Map -->
     <div class="charts-grid">
-        <!-- Sales Line Chart -->
-        <div class="chart-card">
+        <div class="chart-card" style="grid-column: span 6;">
             <h3><span>📈</span> Sales Trend (Last 30 Days)</h3>
             <div class="chart-container">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
 
-        <!-- Orders Bar Chart -->
+        <div class="chart-card map-card">
+            <h3><span>🗺️</span> Uganda - Customer Distribution</h3>
+            <div id="uganda-map"></div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Category + Orders + Payment -->
+    <div class="charts-grid">
         <div class="chart-card">
-            <h3><span>📊</span> Orders by Status</h3>
+            <h3><span>🥧</span> Sales by Category</h3>
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3><span>📊</span> Order Status</h3>
             <div class="chart-container">
                 <canvas id="ordersChart"></canvas>
             </div>
         </div>
 
-        <!-- Category Pie Chart -->
         <div class="chart-card">
-            <h3><span>🥧</span> Sales by Category</h3>
-            <div class="chart-container position-relative">
-                <canvas id="categoryPieChart"></canvas>
+            <h3><span>💳</span> Revenue by Month</h3>
+            <div class="chart-container">
+                <canvas id="revenueChart"></canvas>
             </div>
-        </div>
-
-        <!-- Payment Methods Donut -->
-        <div class="chart-card">
-            <h3><span>💳</span> Payment Methods</h3>
-            <div class="chart-container position-relative">
-                <canvas id="paymentDonutChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Uganda Map -->
-        <div class="chart-card map-card">
-            <h3><span>🗺️</span> <span id="map-title">Order Density by Region</span></h3>
-            <div id="uganda-map"></div>
         </div>
     </div>
 
     <!-- Recent Orders & Top Products -->
     <div class="charts-grid">
         <div class="recent-orders">
-            <h3>🕐 Recent Orders</h3>
+            <h3><span>🕐</span> Recent Orders</h3>
             <table class="orders-table">
                 <thead>
                     <tr>
@@ -163,26 +140,26 @@
                 <tbody>
                     {% for order in recent_orders %}
                     <tr>
-                        <td><a href="/admin/store/order/{{ order.id }}/change/">{{ order.order_id }}</a></td>
-                        <td>{{ order.customer.name|default:order.guest_name }}</td>
+                        <td><a href="/admin/store/order/{{ order.id }}/change/">#{{ order.id }}</a></td>
+                        <td>{{ order.customer.name|default:"Guest" }}</td>
                         <td>UGX {{ order.get_cart_total|intcomma }}</td>
                         <td>
-                            <span class="status-badge status-{{ order.status }}">
-                                {{ order.get_status_display }}
+                            <span class="status-badge status-{{ order.status|default:'pending' }}">
+                                {{ order.status|default:"Pending"|title }}
                             </span>
                         </td>
-                        <td>{{ order.date_ordered|date:"M d, Y" }}</td>
+                        <td>{{ order.date_ordered|date:"M d, H:i" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted">No orders yet</td>
+                        <td colspan="5" class="empty-state">No orders yet</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <div class="chart-card">
+        <div class="chart-card top-products-card">
             <h3><span>🏆</span> Top Selling Products</h3>
             <ul class="top-products">
                 {% for product in top_products %}
@@ -190,12 +167,11 @@
                     <div class="product-info">
                         <span class="product-rank">{{ forloop.counter }}</span>
                         <div>
-                            <strong>{{ product.name }}</strong>
-                            <div class="product-category-label">{{ product.category.name }}</div>
+                            <strong>{{ product.product__name|truncatechars:25 }}</strong>
                         </div>
                     </div>
                     <div class="product-stats">
-                        <strong>{{ product.total_sold }} sold</strong>
+                        <strong>{{ product.sold }} sold</strong>
                         <div class="product-revenue">UGX {{ product.revenue|intcomma }}</div>
                     </div>
                 </li>
@@ -206,59 +182,47 @@
         </div>
     </div>
 
-    <!-- Delivery Progress Section -->
-    <div class="recent-orders">
-        <h3>🚚 Active Deliveries</h3>
-        {% for delivery in active_delivery_list %}
-        <div class="delivery-card">
-            <div class="delivery-header">
-                <div>
-                    <strong>Order #{{ delivery.order.order_id }}</strong>
-                    <span class="delivery-customer">{{ delivery.order.customer.name|default:delivery.order.guest_name }}</span>
-                </div>
-                <span class="status-badge status-{{ delivery.status }}">{{ delivery.get_status_display }}</span>
-            </div>
-            <div class="delivery-progress">
-                <div class="progress-step {% if delivery.status != 'pending' %}completed{% endif %}">
-                    <div class="progress-dot">✓</div>
-                    <div class="progress-label">Confirmed</div>
-                </div>
-                <div class="progress-step {% if delivery.status in 'picked_up,in_transit,delivered' %}completed{% elif delivery.status == 'assigned' %}current{% endif %}">
-                    <div class="progress-dot">📦</div>
-                    <div class="progress-label">Picked Up</div>
-                </div>
-                <div class="progress-step {% if delivery.status in 'in_transit,delivered' %}completed{% elif delivery.status == 'picked_up' %}current{% endif %}">
-                    <div class="progress-dot">🚚</div>
-                    <div class="progress-label">In Transit</div>
-                </div>
-                <div class="progress-step {% if delivery.status == 'delivered' %}completed{% elif delivery.status == 'in_transit' %}current{% endif %}">
-                    <div class="progress-dot">📍</div>
-                    <div class="progress-label">Delivered</div>
-                </div>
-            </div>
+    <!-- Low Stock Alert -->
+    {% if low_stock_products %}
+    <div class="charts-grid">
+        <div class="recent-orders low-stock-section">
+            <h3><span>⚠️</span> Low Stock Alert</h3>
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Current Stock</th>
+                        <th>Price</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in low_stock_products %}
+                    <tr>
+                        <td><strong>{{ product.name }}</strong></td>
+                        <td><span class="status-badge status-cancelled">{{ product.stock }} units</span></td>
+                        <td>UGX {{ product.price|intcomma }}</td>
+                        <td><a href="/admin/store/product/{{ product.id }}/change/">Update Stock →</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% empty %}
-        <p class="empty-state text-center">No active deliveries</p>
-        {% endfor %}
     </div>
+    {% endif %}
 </div>
 
-<!-- Dashboard Data Container (read by external JS) -->
-<div id="dashboard-data" class="d-none"
+<!-- Dashboard Data -->
+<div id="dashboard-data"
     data-sales-labels='{{ sales_labels|safe }}'
     data-sales-data='{{ sales_data|safe }}'
-    data-orders-by-status='{{ orders_by_status|safe }}'
     data-category-labels='{{ category_labels|safe }}'
     data-category-data='{{ category_data|safe }}'
-    data-payment-labels='{{ payment_labels|safe }}'
-    data-payment-data='{{ payment_data|safe }}'
-    data-order-locations='{{ order_locations|safe }}'
-    data-region-order-counts='{{ region_order_counts|safe }}'
-    data-active-deliveries='{{ active_delivery_locations|safe|default:"[]" }}'
-    data-farmer-locations='{{ farmer_locations|safe|default:"[]" }}'
-    data-delivery-zones='{{ delivery_zones|safe|default:"[]" }}'>
+    data-pending-orders='{{ pending_orders }}'
+    data-processing-orders='{{ processing_orders }}'
+    data-delivered-orders='{{ delivered_orders }}'>
 </div>
 
-<!-- External Dashboard JS -->
 <script src="{% static 'js/admin-dashboard.js' %}"></script>
-{% endblock %}
+</body>
+</html>

@@ -30,6 +30,9 @@ urlpatterns = [
     # Reviews
     path('add-review/<int:product_id>/', views.add_review, name="add_review"),
     
+    # Admin Dashboard
+    path('dashboard/', views.admin_dashboard, name="admin_dashboard"),
+    
     # Mobile Money Payment API
     path('api/momo/initiate/', views.initiate_momo_payment, name="momo_initiate"),
     path('api/momo/status/', views.check_momo_status, name="momo_status"),

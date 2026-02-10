@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg, Sum, Count
+from django.db.models import Q, Avg, Sum, Count, F
 from django.db.models.functions import TruncDate
 from django.conf import settings
 
@@ -421,6 +421,9 @@ def registerPage(request):
 def loginPage(request):
     """User login view"""
     if request.user.is_authenticated:
+        # Redirect admin/staff to dashboard, regular users to store
+        if request.user.is_staff:
+            return redirect('admin_dashboard')
         return redirect('store')
     
     if request.method == 'POST':
@@ -432,7 +435,12 @@ def loginPage(request):
         if user is not None:
             login(request, user)
             
-            # Merge cookie cart into database cart
+            # Redirect admin/staff users to dashboard
+            if user.is_staff:
+                messages.success(request, f'Welcome back, {user.username}!')
+                return redirect('admin_dashboard')
+            
+            # Merge cookie cart into database cart (for regular users)
             merge_cart_on_login(request, user)
             
             messages.success(request, f'Welcome back, {user.username}!')
@@ -852,3 +860,128 @@ def newsletter_subscribe(request):
             'success': False,
             'message': str(e)
         })
+
+
+@login_required
+def admin_dashboard(request):
+    """Custom admin dashboard with analytics and charts"""
+    from django.db.models import F, Sum, Count
+    from django.db.models.functions import TruncDate
+    from collections import defaultdict
+    
+    # Only allow staff/superusers
+    if not request.user.is_staff:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('homepage')
+    
+    # Get date range (default last 30 days)
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=30)
+    
+    # Sales data for chart - aggregate from OrderItems (quantity * price)
+    orders = Order.objects.filter(
+        complete=True,
+        date_ordered__date__gte=start_date,
+        date_ordered__date__lte=end_date
+    )
+    
+    # Daily sales aggregation using OrderItems with F expressions
+    daily_order_items = OrderItem.objects.filter(
+        order__complete=True,
+        order__date_ordered__date__gte=start_date,
+        order__date_ordered__date__lte=end_date
+    ).annotate(
+        day=TruncDate('order__date_ordered'),
+        item_total=F('quantity') * F('product__price')
+    ).values('day').annotate(
+        total=Sum('item_total'),
+        count=Count('order', distinct=True)
+    ).order_by('day')
+    
+    # Prepare chart data
+    sales_labels = []
+    sales_data = []
+    orders_data = []
+    
+    for sale in daily_order_items:
+        if sale['day']:
+            sales_labels.append(sale['day'].strftime('%b %d'))
+            sales_data.append(float(sale['total'] or 0))
+            orders_data.append(sale['count'])
+    
+    # Fill missing days with 0
+    if not sales_labels:
+        for i in range(30):
+            day = start_date + datetime.timedelta(days=i)
+            sales_labels.append(day.strftime('%b %d'))
+            sales_data.append(0)
+            orders_data.append(0)
+    
+    # Category sales using F expressions
+    category_sales = OrderItem.objects.filter(
+        order__complete=True,
+        order__date_ordered__date__gte=start_date
+    ).annotate(
+        item_total=F('quantity') * F('product__price')
+    ).values('product__category__name').annotate(
+        total=Sum('item_total')
+    ).order_by('-total')[:6]
+    
+    category_labels = [c['product__category__name'] or 'Uncategorized' for c in category_sales]
+    category_data = [float(c['total'] or 0) for c in category_sales]
+    
+    # Stats - calculate total revenue from OrderItems
+    total_revenue = OrderItem.objects.filter(
+        order__complete=True,
+        order__date_ordered__date__gte=start_date,
+        order__date_ordered__date__lte=end_date
+    ).annotate(
+        item_total=F('quantity') * F('product__price')
+    ).aggregate(total=Sum('item_total'))['total'] or 0
+    
+    total_orders = orders.count()
+    total_customers = Customer.objects.count()
+    total_products = Product.objects.filter(is_active=True).count()
+    
+    # Recent orders
+    recent_orders = Order.objects.filter(complete=True).order_by('-date_ordered')[:10]
+    
+    # Top products using F expressions
+    top_products = OrderItem.objects.filter(
+        order__complete=True
+    ).annotate(
+        item_total=F('quantity') * F('product__price')
+    ).values('product__name', 'product__id').annotate(
+        sold=Sum('quantity'),
+        revenue=Sum('item_total')
+    ).order_by('-sold')[:5]
+    
+    # Low stock alert
+    low_stock_products = Product.objects.filter(
+        is_active=True,
+        stock__lt=10
+    ).order_by('stock')[:5]
+    
+    # Customer locations for map (placeholder coordinates)
+    customer_locations = []
+    
+    context = {
+        'sales_labels': json.dumps(sales_labels),
+        'sales_data': json.dumps(sales_data),
+        'orders_data': json.dumps(orders_data),
+        'category_labels': json.dumps(category_labels),
+        'category_data': json.dumps(category_data),
+        'total_revenue': total_revenue,
+        'total_orders': total_orders,
+        'total_customers': total_customers,
+        'total_products': total_products,
+        'recent_orders': recent_orders,
+        'top_products': top_products,
+        'low_stock_products': low_stock_products,
+        'customer_locations': json.dumps(customer_locations),
+        'pending_orders': Order.objects.filter(complete=True, status='pending').count() if hasattr(Order, 'status') else 0,
+        'processing_orders': Order.objects.filter(complete=True, status='processing').count() if hasattr(Order, 'status') else 0,
+        'delivered_orders': Order.objects.filter(complete=True, status='delivered').count() if hasattr(Order, 'status') else total_orders,
+    }
+    
+    return render(request, 'admin/dashboard.html', context)
