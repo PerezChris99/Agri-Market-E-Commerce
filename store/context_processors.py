@@ -1,11 +1,17 @@
-import json
+from .utils import cartData
+from .models import Category
+
 
 def cart_data(request):
-    cart_items = request.COOKIES.get('cart')
-    cart = json.loads(cart_items) if cart_items else []
-
-    # You can perform additional logic or filtering on the cart list if needed
-
+    """Context processor to make cart data available in all templates"""
+    data = cartData(request)
     return {
-        'cartItems': cart,
+        'cartItems': data['cartItems'],
+    }
+
+
+def categories(request):
+    """Context processor to make categories available in all templates"""
+    return {
+        'all_categories': Category.objects.filter(is_active=True),
     }

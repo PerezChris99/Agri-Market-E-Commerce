@@ -1,124 +1,124 @@
-<html>
-    
-<head>
-	<title>Login</title>
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+{% extends 'store/main.html' %}
+{% load static %}
 
+{% block title %}Login - Agri-Market{% endblock %}
 
-	<style>
-		body,
-		html {
-			margin: 0;
-			padding: 0;
-			height: 100%;
-			background: #7abecc !important;
-		}
-		.user_card {
-			width: 350px;
-			margin-top: auto;
-			margin-bottom: auto;
-			background: #74cfbf;
-			position: relative;
-			display: flex;
-			justify-content: center;
-			flex-direction: column;
-			padding: 10px;
-			box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			-webkit-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			-moz-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			border-radius: 5px;
+{% block extra_css %}
+<style>
+    .auth-container {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+    }
+    .auth-card {
+        background: white;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(46, 125, 50, 0.15);
+    }
+    .auth-header {
+        background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
+        padding: 2.5rem 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .auth-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    }
+    .auth-header h4 {
+        position: relative;
+        z-index: 1;
+    }
+    .auth-icon {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 2rem;
+        backdrop-filter: blur(10px);
+    }
+    .form-floating label {
+        color: var(--text-muted);
+    }
+    .form-floating .form-control:focus ~ label {
+        color: var(--agri-green);
+    }
+    .decorative-leaf {
+        position: absolute;
+        font-size: 3rem;
+        opacity: 0.1;
+    }
+    .leaf-1 { top: 10%; left: 5%; transform: rotate(-15deg); }
+    .leaf-2 { bottom: 10%; right: 5%; transform: rotate(25deg); }
+</style>
+{% endblock %}
 
-		}
-
-		.form_container {
-			margin-top: 20px;
-		}
-
-		#form-title{
-			color: #fff;
-			
-		}
-
-		.login_btn {
-			width: 100%;
-			background: #33ccff !important;
-			color: white !important;
-		}
-		.login_btn:focus {
-			box-shadow: none !important;
-			outline: 0px !important;
-		}
-		.login_container {
-			padding: 0 2rem;
-		}
-		.input-group-text {
-			background: #f7ba5b !important;
-			color: white !important;
-			border: 0 !important;
-			border-radius: 0.25rem 0 0 0.25rem !important;
-		}
-		.input_user,
-		.input_pass:focus {
-			box-shadow: none !important;
-			outline: 0px !important;
-		}
-
-		#messages{
-			background-color: grey;
-			color: #fff;
-			padding: 10px;
-			margin-top: 10px;
-		}
-	</style>
-
-</head>
-<body>
-	<div class="container h-100">
-		<div class="d-flex justify-content-center h-100">
-			<div class="user_card">
-				<div class="d-flex justify-content-center">
-
-
-					<h3 id="form-title">LOGIN</h3>
-				</div>
-				<div class="d-flex justify-content-center form_container">
-					<form method="POST" action="">
-						{% csrf_token %}
-						<div class="input-group mb-3">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-user"></i></span>
-							</div>
-							<input type="text" name="username" placeholder="Username..." class="form-control">
-						</div>
-						<div class="input-group mb-2">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-key"></i></span>
-							</div>
-								<input type="password" name="password" placeholder="Password..." class="form-control" >
-						</div>
-
-							<div class="d-flex justify-content-center mt-3 login_container">
-				 				<input class="btn login_btn" type="submit" value="Login">
-				   			</div>
-					</form>
-
-				</div>
-
-				{% for message in messages %}
-					<p id="messages">{{message}}</p>
-				{% endfor %}
-		
-				<div class="mt-4">
-					<div class="d-flex justify-content-center links">
-						Don't have an account? <a href="{% url 'register' %}" class="ml-2">Sign Up</a>
-					</div>
-			
-				</div>
-			</div>
-		</div>
-	</div>
-</body>
-
-</html>
+{% block content %}
+<div class="auth-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-7">
+                <div class="auth-card fade-in-up">
+                    <div class="auth-header text-white">
+                        <span class="decorative-leaf leaf-1">🌿</span>
+                        <span class="decorative-leaf leaf-2">🍃</span>
+                        <div class="auth-icon">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <h4 class="mb-1">Welcome Back!</h4>
+                        <p class="mb-0 opacity-75">Sign in to continue shopping</p>
+                    </div>
+                    <div class="card-body p-4 p-lg-5">
+                        <form method="POST" action="">
+                            {% csrf_token %}
+                            <div class="form-floating mb-3">
+                                <input type="text" name="username" class="form-control" id="username" placeholder="Username" required>
+                                <label for="username"><i class="bi bi-person me-2"></i>Username</label>
+                            </div>
+                            <div class="form-floating mb-4">
+                                <input type="password" name="password" class="form-control" id="password" placeholder="Password" required>
+                                <label for="password"><i class="bi bi-key me-2"></i>Password</label>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="remember" style="border-color: var(--agri-green);">
+                                    <label class="form-check-label" for="remember">Remember me</label>
+                                </div>
+                                <a href="#" class="text-decoration-none" style="color: var(--agri-green);">Forgot password?</a>
+                            </div>
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-lg" style="background: var(--agri-green-gradient); color: white; padding: 0.9rem;">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border-light);">
+                            <span class="text-muted">New to Agri-Market?</span>
+                            <a href="{% url 'register' %}" class="fw-600 text-decoration-none ms-1" style="color: var(--agri-green);">
+                                Create account <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-center text-muted mt-4">
+                    <i class="bi bi-shield-check me-1"></i>
+                    Your information is secure with us
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

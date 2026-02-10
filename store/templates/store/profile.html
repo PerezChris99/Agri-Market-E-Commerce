@@ -1,0 +1,180 @@
+{% extends 'store/main.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Profile - Agri-Market{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store' %}">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">My Profile</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-lg-3 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                {% if customer.profile_image %}
+                <img src="{{ customer.profile_image.url }}" class="rounded-circle mb-3" 
+                     style="width: 100px; height: 100px; object-fit: cover;" alt="Profile">
+                {% else %}
+                <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mb-3" 
+                     style="width: 100px; height: 100px; font-size: 2.5rem;">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                {% endif %}
+                <h5 class="card-title">{{ customer.name }}</h5>
+                <p class="text-muted small">{{ user.email }}</p>
+                {% if customer.is_farmer %}
+                <span class="badge bg-success"><i class="bi bi-patch-check me-1"></i>Verified Farmer</span>
+                {% endif %}
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="#profile-info" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="bi bi-person me-2"></i>Profile Info
+                </a>
+                <a href="#order-history" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="bi bi-bag me-2"></i>Order History
+                </a>
+                <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-heart me-2"></i>Wishlist
+                </a>
+                <a href="{% url 'logout' %}" class="list-group-item list-group-item-action text-danger">
+                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-9">
+        <div class="tab-content">
+            <!-- Profile Info Tab -->
+            <div class="tab-pane fade show active" id="profile-info">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-person-gear me-2"></i>Profile Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">First Name</label>
+                                    <input type="text" name="first_name" class="form-control" 
+                                           value="{{ user.first_name }}" placeholder="First Name">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Last Name</label>
+                                    <input type="text" name="last_name" class="form-control" 
+                                           value="{{ user.last_name }}" placeholder="Last Name">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone Number</label>
+                                    {{ form.phone }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">City/Town</label>
+                                    {{ form.city }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Region/District</label>
+                                    {{ form.region }}
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Full Address</label>
+                                    {{ form.address }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Profile Picture</label>
+                                    {{ form.profile_image }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label d-block">Account Type</label>
+                                    <div class="form-check form-switch mt-2">
+                                        {{ form.is_farmer }}
+                                        <label class="form-check-label" for="id_is_farmer">I am a farmer/seller</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order History -->
+            <div class="card shadow-sm mt-4" id="order-history">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-bag me-2"></i>Order History</h5>
+                </div>
+                <div class="card-body">
+                    {% if orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td><strong>{{ order.order_id }}</strong></td>
+                                    <td>{{ order.date_ordered|date:"M d, Y" }}</td>
+                                    <td>{{ order.get_cart_items }} items</td>
+                                    <td class="fw-bold">UGX {{ order.get_cart_total|intcomma }}</td>
+                                    <td>
+                                        {% if order.status == 'delivered' %}
+                                        <span class="badge bg-success">{{ order.get_status_display }}</span>
+                                        {% elif order.status == 'cancelled' %}
+                                        <span class="badge bg-danger">{{ order.get_status_display }}</span>
+                                        {% elif order.status == 'processing' %}
+                                        <span class="badge bg-info">{{ order.get_status_display }}</span>
+                                        {% elif order.status == 'shipped' %}
+                                        <span class="badge bg-primary">{{ order.get_status_display }}</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">{{ order.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'order_detail' order.order_id %}" class="btn btn-sm btn-outline-secondary">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-bag-x text-muted fs-1"></i>
+                        <h5 class="mt-3">No orders yet</h5>
+                        <p class="text-muted">Start shopping to see your orders here</p>
+                        <a href="{% url 'store' %}" class="btn btn-success">
+                            <i class="bi bi-shop me-2"></i>Start Shopping
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

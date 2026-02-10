@@ -1,0 +1,238 @@
+{% extends 'store/main.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ product.name }} - Agri-Market{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store' %}">Home</a></li>
+                {% if product.category %}
+                <li class="breadcrumb-item"><a href="{% url 'store' %}?category={{ product.category.slug }}">{{ product.category.name }}</a></li>
+                {% endif %}
+                <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Product Image -->
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow-sm">
+            <img src="{{ product.imageURL }}" class="card-img-top" alt="{{ product.name }}" 
+                 style="max-height: 400px; object-fit: cover;">
+            {% if product.is_featured %}
+            <span class="badge bg-warning position-absolute top-0 end-0 m-3 fs-6">
+                <i class="bi bi-star-fill me-1"></i>Featured
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Product Details -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        {% if product.category %}
+                        <span class="badge bg-success mb-2">{{ product.category.name }}</span>
+                        {% endif %}
+                        <h2 class="mb-1">{{ product.name }}</h2>
+                    </div>
+                    {% if user.is_authenticated %}
+                    <button class="btn btn-outline-danger wishlist-btn" data-product-id="{{ product.id }}">
+                        <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Rating -->
+                <div class="mb-3">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= avg_rating %}
+                        <i class="bi bi-star-fill text-warning"></i>
+                        {% else %}
+                        <i class="bi bi-star text-warning"></i>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="text-muted ms-2">({{ review_count }} reviews)</span>
+                </div>
+
+                <!-- Price -->
+                <div class="mb-4">
+                    <span class="fs-2 fw-bold text-success">UGX {{ product.price|intcomma }}</span>
+                    <span class="text-muted">/{{ product.unit }}</span>
+                </div>
+
+                <!-- Stock Status -->
+                <div class="mb-4">
+                    {% if product.in_stock %}
+                        {% if product.stock <= 10 %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Only {{ product.stock }} left
+                        </span>
+                        {% else %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>In Stock
+                        </span>
+                        {% endif %}
+                    {% else %}
+                    <span class="badge bg-danger">
+                        <i class="bi bi-x-circle me-1"></i>Out of Stock
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Description -->
+                <div class="mb-4">
+                    <h5>Description</h5>
+                    <p class="text-muted">{{ product.description|default:"No description available." }}</p>
+                </div>
+
+                <!-- Seller Info -->
+                {% if product.seller %}
+                <div class="mb-4">
+                    <h6 class="fw-bold">Seller</h6>
+                    <p class="mb-0"><i class="bi bi-person-circle me-2"></i>{{ product.seller.name }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Add to Cart -->
+                <div class="d-grid gap-2">
+                    <button data-product="{{ product.id }}" data-action="add"
+                            class="btn btn-success btn-lg update-cart {% if not product.in_stock %}disabled{% endif %}">
+                        <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits -->
+        <div class="row mt-3">
+            <div class="col-4">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-truck text-success fs-4"></i>
+                    <small class="d-block text-muted">Free Delivery</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-shield-check text-success fs-4"></i>
+                    <small class="d-block text-muted">Quality Assured</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-arrow-repeat text-success fs-4"></i>
+                    <small class="d-block text-muted">Easy Returns</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-chat-quote me-2"></i>Customer Reviews ({{ review_count }})</h5>
+            </div>
+            <div class="card-body">
+                {% if can_review %}
+                <div class="mb-4 p-3 bg-light rounded">
+                    <h6>Write a Review</h6>
+                    <form method="POST" action="{% url 'add_review' product.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Your Rating</label>
+                            <select name="rating" class="form-select" required>
+                                <option value="5">★★★★★ - Excellent</option>
+                                <option value="4">★★★★☆ - Good</option>
+                                <option value="3">★★★☆☆ - Average</option>
+                                <option value="2">★★☆☆☆ - Poor</option>
+                                <option value="1">★☆☆☆☆ - Terrible</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Your Review</label>
+                            <textarea name="comment" class="form-control" rows="3" 
+                                      placeholder="Share your experience with this product..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Submit Review</button>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if reviews %}
+                {% for review in reviews %}
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>{{ review.customer.name }}</strong>
+                            <div>
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                    <i class="bi bi-star-fill text-warning small"></i>
+                                    {% else %}
+                                    <i class="bi bi-star text-warning small"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ review.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    <p class="mt-2 mb-0 text-muted">{{ review.comment }}</p>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-chat-square-text text-muted fs-1"></i>
+                    <p class="text-muted mt-2">No reviews yet. Be the first to review!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Related Products -->
+{% if related_products %}
+<div class="row mt-5">
+    <div class="col-12">
+        <h4 class="mb-4">Related Products</h4>
+        <div class="row">
+            {% for prod in related_products %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card h-100 shadow-sm product-card">
+                    <a href="{% url 'product_detail' prod.slug %}">
+                        <img src="{{ prod.imageURL }}" class="card-img-top product-image" alt="{{ prod.name }}">
+                    </a>
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <a href="{% url 'product_detail' prod.slug %}" class="text-decoration-none text-dark">
+                                {{ prod.name }}
+                            </a>
+                        </h6>
+                        <p class="card-text text-success fw-bold">
+                            UGX {{ prod.price|intcomma }}
+                        </p>
+                        <button data-product="{{ prod.id }}" data-action="add" 
+                                class="btn btn-outline-success btn-sm update-cart">
+                            <i class="bi bi-cart-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

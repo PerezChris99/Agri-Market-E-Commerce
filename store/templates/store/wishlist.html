@@ -1,0 +1,113 @@
+{% extends 'store/main.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Wishlist - Agri-Market{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'profile' %}">Profile</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Wishlist</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-heart me-2 text-danger"></i>My Wishlist</h5>
+                <span class="badge bg-danger">{{ wishlist_items.count }} items</span>
+            </div>
+            <div class="card-body">
+                {% if wishlist_items %}
+                <div class="row">
+                    {% for item in wishlist_items %}
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card h-100 shadow-sm product-card">
+                            <div class="position-relative">
+                                <a href="{% url 'product_detail' item.product.slug %}">
+                                    <img src="{{ item.product.imageURL }}" class="card-img-top product-image" 
+                                         alt="{{ item.product.name }}">
+                                </a>
+                                <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 wishlist-btn" 
+                                        data-product-id="{{ item.product.id }}" title="Remove from wishlist">
+                                    <i class="bi bi-heart-fill"></i>
+                                </button>
+                                {% if not item.product.in_stock %}
+                                <div class="out-of-stock-overlay">Out of Stock</div>
+                                {% endif %}
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <h6 class="card-title">
+                                    <a href="{% url 'product_detail' item.product.slug %}" 
+                                       class="text-decoration-none text-dark">
+                                        {{ item.product.name }}
+                                    </a>
+                                </h6>
+                                {% if item.product.category %}
+                                <small class="text-muted mb-2">{{ item.product.category.name }}</small>
+                                {% endif %}
+                                <p class="card-text text-success fw-bold mt-auto mb-2">
+                                    UGX {{ item.product.price|intcomma }}
+                                    <small class="text-muted fw-normal">/{{ item.product.unit }}</small>
+                                </p>
+                                <small class="text-muted mb-2">
+                                    <i class="bi bi-clock me-1"></i>Added {{ item.date_added|date:"M d, Y" }}
+                                </small>
+                                <button data-product="{{ item.product.id }}" data-action="add" 
+                                        class="btn btn-success update-cart {% if not item.product.in_stock %}disabled{% endif %}">
+                                    <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-heart text-muted" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3">Your wishlist is empty</h4>
+                    <p class="text-muted">Save items you love by clicking the heart icon on products</p>
+                    <a href="{% url 'store' %}" class="btn btn-success">
+                        <i class="bi bi-shop me-2"></i>Explore Products
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Update wishlist buttons to remove items and refresh page
+document.querySelectorAll('.wishlist-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const productId = this.dataset.productId;
+        fetch('/toggle-wishlist/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            },
+            body: JSON.stringify({ product_id: productId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload to update the list
+                window.location.reload();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -1,55 +1,214 @@
 {% extends 'store/main.html' %}
 {% load static %}
-{% block content %}
-    <div class="row">
-        {% for product in products %}
-        <div class="col-lg-4">
-            <img class="thumbnail" src="{{product.imageURL}}">
-            <div class="box-element product">
-                <h6><strong>{{product.name}}</strong></h6>
-                <hr>
-                <button data-product={{product.id}} data-action="add" class="btn btn-outline-secondary add-btn update-cart">Add to Cart</button>
-		        <a class="btn btn-outline-success" href="#">View</a>
-		        <h4 style="display: inline-block;float: right">
-                    UGX {{product.price|floatformat:0}}
-                </h4>
+{% load humanize %}
 
+{% block title %}Shop Agricultural Products - Agri-Market{% endblock %}
+
+{% block content %}
+<!-- Hero Section for Store -->
+{% if not search_query and not current_category %}
+<div class="text-center mb-5 fade-in-up">
+    <h1 class="display-title mb-3">Fresh From The Farm</h1>
+    <p class="text-muted lead">Discover the finest agricultural products from Ugandan farmers</p>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Sidebar Filters -->
+    <div class="col-lg-3 mb-4">
+        <div class="category-filter sticky-top" style="top: 100px;">
+            <h5><i class="bi bi-sliders me-2"></i>Filter Products</h5>
+                <div class="list-group list-group-flush mb-4">
+                    <a href="{% url 'store' %}" 
+                       class="list-group-item list-group-item-action {% if not current_category %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>All Products
+                    </a>
+                    {% for category in categories %}
+                    <a href="{% url 'store' %}?category={{ category.slug }}" 
+                       class="list-group-item list-group-item-action {% if current_category == category.slug %}active{% endif %}">
+                        <i class="bi bi-tag me-2"></i>{{ category.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Sort By -->
+                <h6 class="mb-3" style="color: var(--agri-green-dark); border-bottom: 2px solid var(--agri-green-lighter); padding-bottom: 0.75rem;">Sort By</h6>
+                <select class="form-select" id="sort-select" onchange="applySorting()">
+                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                    <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name: A-Z</option>
+                </select>
             </div>
         </div>
-        {% endfor %}
-    </div>
 
-    <script>
-        <!-- we need a function to capture the adding to cart function. -->
-        function addToCart(itemId) {
-          fetch(`/add-to-cart/${itemId}/`, {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCookie('csrftoken'),  // Include CSRF token if required
-              },
-              body: JSON.stringify({}),
-          })
-          .then(response => response.json())
-          .then(data => {
-              // Update the cart UI or perform any other necessary actions
-              console.log(data);
-          })
-          .catch(error => {
-              console.error('Error:', error);
-          });
-      }
-      
-      // Helper function to get CSRF token from cookies
-      function getCookie(name) {
-          const value = `; ${document.cookie}`;
-          const parts = value.split(`; ${name}=`);
-          if (parts.length === 2) return parts.pop().split(';').shift();
-      }
-  
-      
-  
-  
-  
-      </script>
+    <!-- Products Grid -->
+    <div class="col-lg-9">
+        <!-- Search Results Header -->
+        {% if search_query %}
+        <div class="alert alert-info mb-4">
+            <i class="bi bi-search me-2"></i>
+            Search results for "<strong>{{ search_query }}</strong>"
+            <a href="{% url 'store' %}" class="float-end text-decoration-none">Clear search</a>
+        </div>
+        {% endif %}
+
+        <!-- Featured Products -->
+        {% if featured_products and not search_query and not current_category %}
+        <div class="mb-5">
+            <h4 class="mb-4"><i class="bi bi-star-fill text-warning me-2"></i>Featured Products</h4>
+            <div class="row">
+                {% for product in featured_products %}
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="card h-100 shadow-sm product-card border-warning">
+                        <div class="position-relative">
+                            <a href="{% url 'product_detail' product.slug %}">
+                                <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}">
+                            </a>
+                            <span class="badge bg-warning position-absolute top-0 end-0 m-2">Featured</span>
+                            {% if not product.in_stock %}
+                            <div class="out-of-stock-overlay">Out of Stock</div>
+                            {% endif %}
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">
+                                <a href="{% url 'product_detail' product.slug %}" class="text-decoration-none text-dark">
+                                    {{ product.name }}
+                                </a>
+                            </h6>
+                            <p class="card-text text-success fw-bold mt-auto">
+                                UGX {{ product.price|intcomma }}<small class="text-muted">/{{ product.unit }}</small>
+                            </p>
+                            <button data-product="{{ product.id }}" data-action="add" 
+                                    class="btn btn-success btn-sm update-cart {% if not product.in_stock %}disabled{% endif %}">
+                                <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <hr>
+        {% endif %}
+
+        <!-- All Products -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">
+                {% if current_category %}
+                    {{ current_category|title }} Products
+                {% else %}
+                    All Products
+                {% endif %}
+            </h4>
+            <small class="text-muted">{{ products.paginator.count }} product(s) found</small>
+        </div>
+
+        {% if products %}
+        <div class="row stagger-children">
+            {% for product in products %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm product-card">
+                    <div class="position-relative">
+                        <a href="{% url 'product_detail' product.slug %}">
+                            <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}">
+                        </a>
+                        {% if product.is_featured %}
+                        <span class="badge bg-warning position-absolute top-0 end-0 m-2">Featured</span>
+                        {% endif %}
+                        {% if not product.in_stock %}
+                        <div class="out-of-stock-overlay">Out of Stock</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">
+                                <a href="{% url 'product_detail' product.slug %}" class="text-decoration-none text-dark">
+                                    {{ product.name }}
+                                </a>
+                            </h6>
+                            {% if user.is_authenticated %}
+                            <button class="btn btn-link p-0 wishlist-btn" data-product-id="{{ product.id }}">
+                                <i class="bi bi-heart text-danger"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if product.category %}
+                        <small class="text-muted mb-2">{{ product.category.name }}</small>
+                        {% endif %}
+                        <p class="card-text text-success fw-bold fs-5 mt-auto mb-2">
+                            UGX {{ product.price|intcomma }}
+                            <small class="text-muted fw-normal">/{{ product.unit }}</small>
+                        </p>
+                        {% if product.stock > 0 and product.stock <= 10 %}
+                        <small class="text-warning mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Only {{ product.stock }} left</small>
+                        {% endif %}
+                        <div class="d-grid gap-2">
+                            <button data-product="{{ product.id }}" data-action="add" 
+                                    class="btn btn-success update-cart {% if not product.in_stock %}disabled{% endif %}">
+                                <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                            </button>
+                            <a href="{% url 'product_detail' product.slug %}" class="btn btn-outline-secondary btn-sm">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if products.has_other_pages %}
+        <nav aria-label="Product pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if products.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in products.paginator.page_range %}
+                    {% if products.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if products.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.next_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">🌾</div>
+            <h3>No products found</h3>
+            <p>Try adjusting your search or filter criteria</p>
+            <a href="{% url 'store' %}" class="btn btn-success"><i class="bi bi-arrow-left me-2"></i>View All Products</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function applySorting() {
+    var sortValue = document.getElementById('sort-select').value;
+    var url = new URL(window.location.href);
+    url.searchParams.set('sort', sortValue);
+    window.location.href = url.toString();
+}
+</script>
+
 {% endblock content %}

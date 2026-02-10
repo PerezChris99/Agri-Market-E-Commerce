@@ -1,0 +1,227 @@
+{% extends 'store/main.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Order #{{ order.order_id }} - Agri-Market{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'profile' %}">Profile</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Order #{{ order.order_id }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Order Details -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">Order #{{ order.order_id }}</h5>
+                    <small class="text-muted">Placed on {{ order.date_ordered|date:"F d, Y at H:i" }}</small>
+                </div>
+                <div>
+                    {% if order.status == 'delivered' %}
+                    <span class="badge bg-success fs-6">{{ order.get_status_display }}</span>
+                    {% elif order.status == 'cancelled' %}
+                    <span class="badge bg-danger fs-6">{{ order.get_status_display }}</span>
+                    {% elif order.status == 'processing' %}
+                    <span class="badge bg-info fs-6">{{ order.get_status_display }}</span>
+                    {% elif order.status == 'shipped' %}
+                    <span class="badge bg-primary fs-6">{{ order.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge bg-warning fs-6">{{ order.get_status_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Order Progress -->
+                <div class="order-progress mb-4">
+                    <div class="row text-center">
+                        <div class="col">
+                            <div class="progress-step {% if order.status != 'cancelled' %}active{% endif %}">
+                                <div class="step-icon">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                </div>
+                                <small>Order Placed</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="progress-step {% if order.status in 'processing shipped delivered' %}active{% endif %}">
+                                <div class="step-icon">
+                                    <i class="bi bi-{% if order.status in 'processing shipped delivered' %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                </div>
+                                <small>Processing</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="progress-step {% if order.status in 'shipped delivered' %}active{% endif %}">
+                                <div class="step-icon">
+                                    <i class="bi bi-{% if order.status in 'shipped delivered' %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                </div>
+                                <small>Shipped</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="progress-step {% if order.status == 'delivered' %}active{% endif %}">
+                                <div class="step-icon">
+                                    <i class="bi bi-{% if order.status == 'delivered' %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                </div>
+                                <small>Delivered</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <h6 class="fw-bold mb-3">Order Items</h6>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product %}
+                                        <img src="{{ item.product.imageURL }}" class="rounded me-3" 
+                                             style="width: 50px; height: 50px; object-fit: cover;"
+                                             alt="{{ item.product.name }}">
+                                        <div>
+                                            <strong>{{ item.product.name }}</strong>
+                                            {% if item.product.category %}
+                                            <small class="d-block text-muted">{{ item.product.category.name }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">Product no longer available</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>UGX {{ item.price_at_purchase|intcomma }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td class="text-end fw-bold">UGX {{ item.get_total|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                <td class="text-end"><strong>UGX {{ order.get_cart_total|intcomma }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end">Shipping:</td>
+                                <td class="text-end text-success">Free</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                <td class="text-end"><strong class="fs-5">UGX {{ order.get_cart_total|intcomma }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Info Sidebar -->
+    <div class="col-lg-4">
+        <!-- Payment Info -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Payment Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Payment Method:</span>
+                    <span class="text-capitalize">{{ order.payment_method|default:"PayPal" }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Payment Status:</span>
+                    {% if order.payment_status == 'completed' %}
+                    <span class="badge bg-success">Paid</span>
+                    {% elif order.payment_status == 'pending' %}
+                    <span class="badge bg-warning">Pending</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ order.get_payment_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% if order.transaction_id %}
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Transaction ID:</span>
+                    <small class="text-truncate" style="max-width: 150px;" title="{{ order.transaction_id }}">
+                        {{ order.transaction_id }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Shipping Address -->
+        {% if order.requires_shipping %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Shipping Address</h6>
+            </div>
+            <div class="card-body">
+                {% if order.shipping_address %}
+                <p class="mb-1"><strong>{{ order.shipping_address.full_name }}</strong></p>
+                <p class="mb-1 text-muted">{{ order.shipping_address.address }}</p>
+                <p class="mb-1 text-muted">{{ order.shipping_address.city }}, {{ order.shipping_address.region }}</p>
+                <p class="mb-1 text-muted">{{ order.shipping_address.country }}</p>
+                {% if order.shipping_address.phone %}
+                <p class="mb-0"><i class="bi bi-telephone me-2"></i>{{ order.shipping_address.phone }}</p>
+                {% endif %}
+                {% else %}
+                <p class="text-muted mb-0">No shipping address provided</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Orders
+                </a>
+                <a href="{% url 'store' %}" class="btn btn-success w-100">
+                    <i class="bi bi-bag me-2"></i>Continue Shopping
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-step {
+    position: relative;
+    opacity: 0.5;
+}
+.progress-step.active {
+    opacity: 1;
+}
+.progress-step .step-icon {
+    font-size: 1.5rem;
+    color: var(--bs-success);
+}
+.progress-step small {
+    display: block;
+    margin-top: 0.5rem;
+}
+</style>
+
+{% endblock %}

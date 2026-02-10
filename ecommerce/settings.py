@@ -1,18 +1,22 @@
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-3=+f9yz+dub*k@q(vj5)3^@oze^0^qpv$68-zc@y-n&5j=y)=^'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -24,8 +28,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
-    #our installed apps
+    # Our installed apps
     'store.apps.StoreConfig',
 ]
 
@@ -52,7 +57,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'store.context_processors.cart_data'
+                'store.context_processors.cart_data',
+                'store.context_processors.categories',
             ],
         },
     },
@@ -67,7 +73,7 @@ WSGI_APPLICATION = 'ecommerce.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'agrimarket.sqlite3',
     }
 }
 
@@ -92,7 +98,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Kampala'
 
 USE_I18N = True
 
@@ -105,13 +111,183 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
 ]
 
-MEDIA_URL = '/images/'
+MEDIA_URL = '/media/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'static/images')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# Authentication settings
 LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
-LOGIN_REDIRECT_URL = '/login/'
+# PayPal settings - KEEP THESE SECRET IN PRODUCTION
+PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID', '')
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET', '')
+PAYPAL_MODE = os.environ.get('PAYPAL_MODE', 'sandbox')  # 'sandbox' or 'live'
+
+# Session settings
+SESSION_COOKIE_AGE = 86400 * 14  # 14 days
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+
+# Messages framework
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
+
+# ============================================
+# MOBILE MONEY PAYMENT SETTINGS (Uganda)
+# ============================================
+
+# MTN Mobile Money API (MTN MoMo)
+# Get credentials from: https://momodeveloper.mtn.com/
+MTN_MOMO_API_USER = os.environ.get('MTN_MOMO_API_USER', '')
+MTN_MOMO_API_KEY = os.environ.get('MTN_MOMO_API_KEY', '')
+MTN_MOMO_SUBSCRIPTION_KEY = os.environ.get('MTN_MOMO_SUBSCRIPTION_KEY', '')
+MTN_MOMO_ENVIRONMENT = os.environ.get('MTN_MOMO_ENVIRONMENT', 'sandbox')  # 'sandbox' or 'production'
+MTN_MOMO_CALLBACK_URL = os.environ.get('MTN_MOMO_CALLBACK_URL', 'https://yourdomain.com/api/momo/callback/')
+MTN_MOMO_CURRENCY = 'UGX'
+
+# Airtel Money API
+# Get credentials from: https://developers.airtel.africa/
+AIRTEL_CLIENT_ID = os.environ.get('AIRTEL_CLIENT_ID', '')
+AIRTEL_CLIENT_SECRET = os.environ.get('AIRTEL_CLIENT_SECRET', '')
+AIRTEL_ENVIRONMENT = os.environ.get('AIRTEL_ENVIRONMENT', 'sandbox')  # 'sandbox' or 'production'
+AIRTEL_CALLBACK_URL = os.environ.get('AIRTEL_CALLBACK_URL', 'https://yourdomain.com/api/momo/callback/')
+AIRTEL_COUNTRY_CODE = 'UG'
+AIRTEL_CURRENCY = 'UGX'
+
+# Flutterwave Payment Gateway (Unified)
+# Get credentials from: https://dashboard.flutterwave.com/
+FLUTTERWAVE_PUBLIC_KEY = os.environ.get('FLUTTERWAVE_PUBLIC_KEY', '')
+FLUTTERWAVE_SECRET_KEY = os.environ.get('FLUTTERWAVE_SECRET_KEY', '')
+FLUTTERWAVE_ENCRYPTION_KEY = os.environ.get('FLUTTERWAVE_ENCRYPTION_KEY', '')
+FLUTTERWAVE_ENVIRONMENT = os.environ.get('FLUTTERWAVE_ENVIRONMENT', 'sandbox')
+FLUTTERWAVE_REDIRECT_URL = os.environ.get('FLUTTERWAVE_REDIRECT_URL', 'https://yourdomain.com/checkout/complete/')
+
+# Payment provider preference
+# Options: 'direct' (use MTN/Airtel APIs directly) or 'flutterwave' (use Flutterwave as unified gateway)
+MOBILE_MONEY_PROVIDER = os.environ.get('MOBILE_MONEY_PROVIDER', 'flutterwave')
+
+
+# ============================================
+# SMS NOTIFICATION SETTINGS
+# ============================================
+
+# SMS Provider: 'africastalking' or 'twilio'
+SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'africastalking')
+
+# Africa's Talking SMS API
+# Get credentials from: https://africastalking.com/
+AT_USERNAME = os.environ.get('AT_USERNAME', 'sandbox')
+AT_API_KEY = os.environ.get('AT_API_KEY', '')
+AT_SENDER_ID = os.environ.get('AT_SENDER_ID', 'AgriMarket')
+
+# Twilio SMS API (Alternative)
+# Get credentials from: https://www.twilio.com/
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+
+
+# ============================================
+# WHATSAPP BUSINESS API SETTINGS
+# ============================================
+
+# WhatsApp Business API (via Meta/Facebook)
+# Get credentials from: https://developers.facebook.com/docs/whatsapp/cloud-api/
+WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
+WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN', '')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'agrimarket_verify_token')
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')
+
+
+# ============================================
+# DELIVERY & LOGISTICS SETTINGS
+# ============================================
+
+# Default delivery fee (UGX) for within Kampala
+DEFAULT_DELIVERY_FEE = int(os.environ.get('DEFAULT_DELIVERY_FEE', '5000'))
+
+# Free delivery threshold (UGX)
+FREE_DELIVERY_THRESHOLD = int(os.environ.get('FREE_DELIVERY_THRESHOLD', '100000'))
+
+# Delivery time slots
+DELIVERY_TIME_SLOTS = [
+    ('morning', '8:00 AM - 12:00 PM'),
+    ('afternoon', '12:00 PM - 4:00 PM'),
+    ('evening', '4:00 PM - 8:00 PM'),
+]
+
+
+# ============================================
+# CURRENCY & LOCALIZATION
+# ============================================
+
+# Default currency
+DEFAULT_CURRENCY = 'UGX'
+CURRENCY_SYMBOL = 'UGX '
+
+# Exchange rates (approximate, for PayPal conversion)
+USD_TO_UGX_RATE = int(os.environ.get('USD_TO_UGX_RATE', '3700'))
+
+
+# ============================================
+# SITE INFORMATION
+# ============================================
+
+SITE_NAME = 'Agri-Market Uganda'
+SITE_TAGLINE = 'Fresh Farm Produce, Delivered to Your Door'
+SITE_DESCRIPTION = 'Uganda\'s Premier Online Marketplace for Fresh Agricultural Products'
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'support@agrimarket.ug')
+SUPPORT_PHONE = os.environ.get('SUPPORT_PHONE', '+256 700 000 000')
+SUPPORT_WHATSAPP = os.environ.get('SUPPORT_WHATSAPP', '+256 700 000 000')
+
+
+# ============================================
+# LOGGING
+# ============================================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'agrimarket.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'store': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)

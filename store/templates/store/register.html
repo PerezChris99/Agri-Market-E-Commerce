@@ -1,138 +1,173 @@
-<!DOCTYPE html>
-<html>
-    
-<head>
-	<title>Register</title>
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+{% extends 'store/main.html' %}
+{% load static %}
 
-	<style>
-		body,
-		html {
-			margin: 0;
-			padding: 0;
-			height: 100%;
-			background: #7abecc !important;
-		}
-		.user_card {
-			width: 350px;
-			margin-top: auto;
-			margin-bottom: auto;
-			background: #74cfbf;
-			position: relative;
-			display: flex;
-			justify-content: center;
-			flex-direction: column;
-			padding: 10px;
-			box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			-webkit-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			-moz-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-			border-radius: 5px;
+{% block title %}Register - Agri-Market{% endblock %}
 
-		}
+{% block extra_css %}
+<style>
+    .auth-container {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        padding: 2rem 0;
+    }
+    .auth-card {
+        background: white;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(46, 125, 50, 0.15);
+    }
+    .auth-header {
+        background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .auth-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    }
+    .auth-icon {
+        width: 70px;
+        height: 70px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.75rem;
+        backdrop-filter: blur(10px);
+    }
+    .form-floating label {
+        color: var(--text-muted);
+    }
+    .benefits-list {
+        background: linear-gradient(135deg, var(--cream-light), var(--cream));
+        border-radius: 16px;
+        padding: 1.5rem;
+    }
+    .benefit-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+    }
+    .benefit-item i {
+        width: 32px;
+        height: 32px;
+        background: var(--agri-green-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
 
-		.form_container {
-			margin-top: 20px;
-		}
-
-		#form-title{
-			color: #fff;
-		}
-		.login_btn {
-			width: 100%;
-			background: #33ccff !important;
-			color: white !important;
-		}
-		.login_btn:focus {
-			box-shadow: none !important;
-			outline: 0px !important;
-		}
-		.login_container {
-			padding: 0 2rem;
-		}
-		.input-group-text {
-			background: #f7ba5b !important;
-			color: white !important;
-			border: 0 !important;
-			border-radius: 0.25rem 0 0 0.25rem !important;
-		}
-		.input_user,
-		.input_pass:focus {
-			box-shadow: none !important;
-			outline: 0px !important;
-		}
-
-	</style>
-
-</head>
-<body>
-	<div class="container h-100">
-		<div class="d-flex justify-content-center h-100">
-			<div class="user_card">
-				<div class="d-flex justify-content-center">
-					<h3 id="form-title">REGISTER ACCOUNT</h3>
-				</div>
-				<div class="d-flex justify-content-center form_container">
-					<form method="POST" action="">
-                        {% csrf_token %}
-						<div class="input-group mb-3">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-user"></i></span>
-							</div>
-							{{form.username}}
-						</div>
-						<div class="input-group mb-2">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-envelope-square"></i></span>
-							</div>
-							{{form.email}}
-						</div>
-						<div class="input-group mb-2">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-key"></i></span>
-							</div>
-							{{form.password1}}
-						</div>
-						<div class="input-group mb-2">
-							<div class="input-group-append">
-								<span class="input-group-text"><i class="fas fa-key"></i></span>
-							</div>
-							{{form.password2}}
-						</div>
-
-				   		<div class="d-flex justify-content-center mt-3 login_container">
-				 			<input class="btn login_btn" type="submit" value="Register Account">
-				   		</div>
-					</form>
-				</div>
-
-				{{form.errors}}
-				
-				<div class="mt-4">
-					<div class="d-flex justify-content-center links">
-						Already have an account? <a href="{% url 'login' %}" class="ml-2">Login</a>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<script>
-						/* Because i didnt set placeholder values in forms.py they will be set here using vanilla Javascript
-		//We start indexing at one because CSRF_token is considered and input field 
-		 */
-
-		//Query All input fields
-		var form_fields = document.getElementsByTagName('input')
-		form_fields[1].placeholder='Username..';
-		form_fields[2].placeholder='Email..';
-		form_fields[3].placeholder='Enter password...';
-		form_fields[4].placeholder='Re-enter Password...';
-
-
-		for (var field in form_fields){	
-			form_fields[field].className += ' form-control'
-		}
-	</script>
-</body>
-</html>
+{% block content %}
+<div class="auth-container">
+    <div class="container">
+        <div class="row justify-content-center align-items-center">
+            <!-- Registration Form -->
+            <div class="col-lg-5 col-md-7 mb-4 mb-lg-0">
+                <div class="auth-card fade-in-up">
+                    <div class="auth-header text-white">
+                        <div class="auth-icon">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </div>
+                        <h4 class="mb-1">Join Agri-Market</h4>
+                        <p class="mb-0 opacity-75">Create your account in seconds</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="">
+                            {% csrf_token %}
+                            <div class="form-floating mb-3">
+                                {{ form.username }}
+                                <label for="id_username"><i class="bi bi-person me-2"></i>Username</label>
+                                {% if form.username.errors %}
+                                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ form.username.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-floating mb-3">
+                                {{ form.email }}
+                                <label for="id_email"><i class="bi bi-envelope me-2"></i>Email Address</label>
+                                {% if form.email.errors %}
+                                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ form.email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-floating mb-3">
+                                {{ form.password1 }}
+                                <label for="id_password1"><i class="bi bi-lock me-2"></i>Password</label>
+                                {% if form.password1.errors %}
+                                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ form.password1.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-floating mb-4">
+                                {{ form.password2 }}
+                                <label for="id_password2"><i class="bi bi-lock-fill me-2"></i>Confirm Password</label>
+                                {% if form.password2.errors %}
+                                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ form.password2.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-check mb-4">
+                                <input type="checkbox" class="form-check-input" id="terms" style="border-color: var(--agri-green);" required>
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="#" style="color: var(--agri-green);">Terms</a> and <a href="#" style="color: var(--agri-green);">Privacy Policy</a>
+                                </label>
+                            </div>
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-lg" style="background: var(--agri-green-gradient); color: white; padding: 0.9rem;">
+                                    <i class="bi bi-check2-circle me-2"></i>Create Account
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border-light);">
+                            <span class="text-muted">Already have an account?</span>
+                            <a href="{% url 'login' %}" class="fw-600 text-decoration-none ms-1" style="color: var(--agri-green);">
+                                Sign In <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Benefits Section -->
+            <div class="col-lg-4 d-none d-lg-block">
+                <div class="benefits-list fade-in-up" style="animation-delay: 0.2s;">
+                    <h5 class="mb-4" style="color: var(--agri-green-dark);">Why Join Us?</h5>
+                    <div class="benefit-item">
+                        <i class="bi bi-truck"></i>
+                        <span>Free delivery on orders above UGX 100,000</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-heart"></i>
+                        <span>Save favorites to your wishlist</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Track your order history</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-percent"></i>
+                        <span>Exclusive deals for members</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-shield-check"></i>
+                        <span>Secure & trusted platform</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

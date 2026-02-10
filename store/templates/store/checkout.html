@@ -1,194 +1,653 @@
 {% extends 'store/main.html' %}
 {% load static %}
+{% load humanize %}
+
+{% block title %}Checkout - Agri-Market{% endblock %}
+
 {% block content %}
-     <div class="row">
-		<div class="col-lg-6">
-			<div class="box-element" id="form-wrapper">
-				<form id="form" method="post">
-					{% csrf_token %}
-					<div id="user-info">
-						<div class="form-field">
-							<input required class="form-control" type="text" name="name" placeholder="Name..">
-						</div>
-						<div class="form-field">
-							<input required class="form-control" type="email" name="email" placeholder="Email..">
-						</div>
-					</div>
-					
-					<div id="shipping-info">
-						<hr>
-						<p>Shipping Information:</p>
-						<hr>
-						<div class="form-field">
-							<input class="form-control" type="text" name="address" placeholder="Address..">
-						</div>
-						<div class="form-field">
-							<input class="form-control" type="text" name="city" placeholder="City/Town..">
-						</div>
-						<div class="form-field">
-							<input class="form-control" type="text" name="region" placeholder="Region..">
-						</div>
-						<div class="form-field">
-							<input class="form-control" type="text" name="zipcode" placeholder="Zip code..">
-						</div>
-						<div class="form-field">
-							<input class="form-control" type="text" name="country" placeholder="Country..">
-						</div>
-					</div>
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'cart' %}">Cart</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Checkout</li>
+            </ol>
+        </nav>
+    </div>
+</div>
 
-					<hr>
-					<input id="form-button" class="btn btn-success btn-block" type="submit" value="Continue">
-				</form>
-			</div>
+<div class="row">
+    <!-- Checkout Form -->
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow-sm" id="form-wrapper">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Billing & Shipping Information</h5>
+            </div>
+            <div class="card-body">
+                <form id="checkout-form" method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Contact Information -->
+                    <div id="user-info" class="{% if user.is_authenticated %}d-none{% endif %}">
+                        <h6 class="fw-bold mb-3">Contact Information</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name" id="name" 
+                                       placeholder="Enter your full name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="email" id="email"
+                                       placeholder="Enter your email" required>
+                            </div>
+                        </div>
+                    </div>
 
-			<br>
-			<div class="box-element hidden" id="payment-info">
-				<small>Paypal Options</small>
-				<div id="paypal-button-container"></div>
-				<!---<button id="make-payment">Make Payment</button>--->
-			</div>
-			
-		</div>
+                    {% if user.is_authenticated %}
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-person-check me-2"></i>
+                        Ordering as <strong>{{ user.username }}</strong> ({{ user.email }})
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Shipping Information -->
+                    <div id="shipping-info">
+                        <h6 class="fw-bold mb-3">Shipping Address</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">🇺🇬 +256</span>
+                                    <input type="tel" class="form-control" name="phone" id="phone"
+                                           placeholder="700 000 000" pattern="[0-9]{9}" maxlength="9" required>
+                                </div>
+                                <div class="form-text">We'll send order updates to this number</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Landmark (Optional)</label>
+                                <input type="text" class="form-control" name="landmark" id="landmark"
+                                       placeholder="e.g., Near Total Petrol Station">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Street Address <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="address" id="address"
+                                       placeholder="House number, street name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">City/Town <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="city" id="city"
+                                       placeholder="e.g., Kampala" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">District <span class="text-danger">*</span></label>
+                                <select class="form-select" name="region" id="region" required>
+                                    <option value="">Select District</option>
+                                    <optgroup label="🏙️ Central Region">
+                                        <option value="Kampala">Kampala</option>
+                                        <option value="Wakiso">Wakiso</option>
+                                        <option value="Mukono">Mukono</option>
+                                        <option value="Mpigi">Mpigi</option>
+                                        <option value="Masaka">Masaka</option>
+                                        <option value="Jinja">Jinja</option>
+                                        <option value="Entebbe">Entebbe</option>
+                                    </optgroup>
+                                    <optgroup label="🌄 Eastern Region">
+                                        <option value="Mbale">Mbale</option>
+                                        <option value="Soroti">Soroti</option>
+                                        <option value="Tororo">Tororo</option>
+                                        <option value="Busia">Busia</option>
+                                        <option value="Iganga">Iganga</option>
+                                    </optgroup>
+                                    <optgroup label="🌾 Northern Region">
+                                        <option value="Gulu">Gulu</option>
+                                        <option value="Lira">Lira</option>
+                                        <option value="Arua">Arua</option>
+                                        <option value="Kitgum">Kitgum</option>
+                                    </optgroup>
+                                    <optgroup label="🏔️ Western Region">
+                                        <option value="Mbarara">Mbarara</option>
+                                        <option value="Fort Portal">Fort Portal</option>
+                                        <option value="Kabale">Kabale</option>
+                                        <option value="Kasese">Kasese</option>
+                                        <option value="Hoima">Hoima</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Country</label>
+                                <input type="text" class="form-control" name="country" id="country"
+                                       value="Uganda" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Postal Code (Optional)</label>
+                                <input type="text" class="form-control" name="zipcode" id="zipcode"
+                                       placeholder="Postal code">
+                            </div>
+                        </div>
+                    </div>
 
-		<div class="col-lg-6">
-			<div class="box-element">
-				<a  class="btn btn-outline-dark" href="{% url 'cart' %}">&#x2190; Back to Cart</a>
-				<hr>
-				<h3>Order Summary</h3>
-				<hr>
-				{% for item in items %}
-				<div class="cart-row">
-					<div style="flex:2"><img class="row-image" src="{{item.product.imageURL}}"></div>
-					<div style="flex:2"><p>{{item.product.name}}</p></div>
-					<div style="flex:1"><p>{{item.product.price}}</p></div>
-					<div style="flex:1"><p>x2{{item.quantity}}</p></div>
-				</div>
-				{% endfor %}
+                    <hr class="my-4">
+                    
+                    <button type="submit" id="form-button" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-lock-fill me-2"></i>Continue to Payment
+                    </button>
+                </form>
+            </div>
+        </div>
 
-				<h5>Items: {{order.get_cart_items}}</h5>
-				<h5>Total: UGX {{order.get_cart_total|floatformat:2}}</h5>
-			</div>
-		</div>
-	</div>
+        <!-- Payment Section (Hidden initially) -->
+        <div class="card shadow-sm mt-4 d-none" id="payment-info">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-credit-card me-2"></i>Choose Payment Method</h5>
+            </div>
+            <div class="card-body">
+                <!-- Payment Method Selection -->
+                <div class="payment-methods mb-4">
+                    <!-- MTN Mobile Money -->
+                    <div class="payment-option mb-3" data-method="mtn">
+                        <input type="radio" class="btn-check" name="payment_method" id="pay-mtn" value="mtn" autocomplete="off">
+                        <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-mtn">
+                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #FFCC00, #FFA500); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-weight: bold; color: #000;">MTN</span>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">MTN Mobile Money</h6>
+                                <small class="text-muted">Pay with MTN MoMo (076X, 077X, 078X)</small>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-4 d-none payment-check"></i>
+                        </label>
+                    </div>
 
-	<script src="https://www.paypal.com/sdk/js?client-id=AdrDD2TL6N4hjJQ-EDTOyvMhqqxwWnMmNwj54DQt
-	DXrPFRx-BTZqEhECwwinsXMLnTBFuHInCX6dbNrg&currency=USD"></script>
+                    <!-- Airtel Money -->
+                    <div class="payment-option mb-3" data-method="airtel">
+                        <input type="radio" class="btn-check" name="payment_method" id="pay-airtel" value="airtel" autocomplete="off">
+                        <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-airtel">
+                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #E60000, #FF3333); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-weight: bold; color: #fff; font-size: 12px;">Airtel</span>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">Airtel Money</h6>
+                                <small class="text-muted">Pay with Airtel Money (070X, 075X)</small>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-4 d-none payment-check"></i>
+                        </label>
+                    </div>
 
-	<script>
-		var total = '{{order.get_cart_total}}'
-		// Render the PayPal button into #paypal-button-container
-		paypal.Buttons({
+                    <!-- PayPal -->
+                    <div class="payment-option mb-3" data-method="paypal">
+                        <input type="radio" class="btn-check" name="payment_method" id="pay-paypal" value="paypal" autocomplete="off">
+                        <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-paypal">
+                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #003087, #009CDE); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-weight: bold; color: #fff; font-size: 11px;">PayPal</span>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">PayPal / Visa / Mastercard</h6>
+                                <small class="text-muted">International cards & PayPal</small>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-4 d-none payment-check"></i>
+                        </label>
+                    </div>
 
-			style:{
-				shape:'pill',
-			},
-	
-			// Set up the transaction
-			createOrder: function(data, actions) {
-				return actions.order.create({
-					purchase_units: [{
-						amount: {
-							value: parseFloat(total).toFixed(2)
-						}
-					}]
-				});
-			},
-	
-			// Finalize the transaction
-			onApprove: function(data, actions) {
-				return actions.order.capture().then(function(details) {
-					submitFormData()
-					// Show a success message to the buyer
-					//alert('Transaction completed by ' + details.payer.name.given_name + '!');//
-				});
-			}
-	
-	
-		}).render('#paypal-button-container');
-	</script>
+                    <!-- Cash on Delivery -->
+                    <div class="payment-option mb-3" data-method="cod">
+                        <input type="radio" class="btn-check" name="payment_method" id="pay-cod" value="cod" autocomplete="off">
+                        <label class="payment-card d-flex align-items-center p-3 border rounded w-100" for="pay-cod">
+                            <div class="payment-icon me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #28a745, #218838); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-cash-coin text-white fs-4"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">Cash on Delivery</h6>
+                                <small class="text-muted">Pay when you receive your order</small>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-4 d-none payment-check"></i>
+                        </label>
+                    </div>
+                </div>
 
-	<script type="text/javascript">
-		var shipping = '{{order.shipping}}'
+                <!-- Mobile Money Phone Input -->
+                <div id="momo-phone-section" class="d-none mb-4">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Note:</strong> You will receive a payment prompt on your phone. Please enter your PIN to complete the payment.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Mobile Money Number</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">🇺🇬 +256</span>
+                                <input type="tel" class="form-control" id="momo-phone" 
+                                       placeholder="7XX XXX XXX" pattern="[0-9]{9}" maxlength="9">
+                            </div>
+                            <div class="form-text" id="momo-provider-hint"></div>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" id="momo-pay-btn" class="btn btn-warning btn-lg w-100" disabled>
+                                <i class="bi bi-phone me-2"></i>Send Payment Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-		if(user != 'AnonymousUser'){
-			document.getElementById('user-info').innerHTML = ''
-		}
+                <!-- PayPal Section -->
+                <div id="paypal-section" class="d-none">
+                    <div class="alert alert-info">
+                        <i class="bi bi-globe me-2"></i>
+                        Amount will be converted from UGX to USD at current exchange rate.
+                    </div>
+                    <div id="paypal-button-container"></div>
+                </div>
 
-		if(user != 'AnonymousUser'){
-			document.getElementById('payment-info').classList.remove("hidden");
-		}
+                <!-- COD Section -->
+                <div id="cod-section" class="d-none">
+                    <div class="alert alert-success">
+                        <i class="bi bi-cash-coin me-2"></i>
+                        <strong>Cash on Delivery</strong> - Pay in cash when your order arrives. Please have exact change ready!
+                    </div>
+                    <button type="button" id="cod-btn" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-check-circle me-2"></i>Place Order (Pay on Delivery)
+                    </button>
+                </div>
 
-		var form = document.getElementById('form')
+                <!-- Payment Processing Spinner -->
+                <div id="payment-processing" class="d-none text-center py-4">
+                    <div class="spinner-border text-success mb-3" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <h5 class="text-success">Processing Payment...</h5>
+                    <p class="text-muted" id="payment-status-msg">Please wait while we process your payment</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-		//csrftoken = form.getElementsByTagName("input")[0].value
-		//console.log('Newtoken:', form.getElementsByTagName('input')[0].value)
+    <!-- Order Summary -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Order Summary</h5>
+                <a href="{% url 'cart' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-pencil me-1"></i>Edit
+                </a>
+            </div>
+            <div class="card-body">
+                <!-- Order Items -->
+                <div class="order-items mb-4" style="max-height: 300px; overflow-y: auto;">
+                    {% for item in items %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="position-relative me-3">
+                            <img src="{{ item.product.imageURL }}" class="rounded" 
+                                 style="width: 60px; height: 60px; object-fit: cover;"
+                                 alt="{{ item.product.name }}">
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary">
+                                {{ item.quantity }}
+                            </span>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 small">{{ item.product.name }}</h6>
+                            <small class="text-muted">UGX {{ item.product.price|intcomma }} each</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold">UGX {{ item.get_total|intcomma }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
 
-		form.addEventListener('submit', function(e){
-			e.preventDefault()
-			console.log('Form Submitted....')
-			document.getElementById('form-button').classList.add('hidden')
-			document.getElementById('payment-info').classList.remove('hidden')
-			})
+                <hr>
 
+                <!-- Totals -->
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal</span>
+                    <span>UGX {{ order.get_cart_total|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Shipping</span>
+                    <span class="text-success">Free</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="fs-5 fw-bold">Total</span>
+                    <span class="fs-5 fw-bold text-success" id="total-display">
+                        UGX {{ order.get_cart_total|intcomma }}
+                    </span>
+                </div>
+            </div>
+        </div>
 
-		/*
-		document.getElementById('make-payment').addEventListener('click', function(e){
-			submitFormData()
-		})
-		*/
+        <!-- Trust Badges -->
+        <div class="card mt-3">
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-4">
+                        <i class="bi bi-shield-lock-fill text-success fs-3"></i>
+                        <small class="d-block text-muted">Secure</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-truck text-success fs-3"></i>
+                        <small class="d-block text-muted">Fast Delivery</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-headset text-success fs-3"></i>
+                        <small class="d-block text-muted">24/7 Support</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-		function submitFormData(){
-			console.log('Payment button clicked')
+{% block extra_js %}
+<!-- PayPal SDK -->
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD"></script>
 
-			var userFormData = {
-				'name':null,
-				'email':null,
-				'total':total,
-			}
+<script>
+    var total = {{ order.get_cart_total }};
+    var shipping = '{{ order.requires_shipping }}' === 'True';
+    var form = document.getElementById('checkout-form');
+    var formButton = document.getElementById('form-button');
+    var paymentInfo = document.getElementById('payment-info');
+    
+    // Convert UGX to USD (approximate rate for PayPal)
+    var usdTotal = (total / 3700).toFixed(2);
+    var selectedPaymentMethod = null;
 
-			var shippingInfo = {
-				'address':null,
-				'city':null,
-				'region':null,
-				'zipcode':null,
-				'country':null,
-			}
+    // Copy shipping phone to MoMo phone by default
+    document.getElementById('phone').addEventListener('input', function() {
+        document.getElementById('momo-phone').value = this.value;
+        validateMomoPhone();
+    });
 
-			if(shipping != 'False'){
-				shippingInfo.address = form.address.value
-				shippingInfo.city = form.city.value
-				shippingInfo.region = form.region.value
-				shippingInfo.zipcode = form.zipcode.value
-				shippingInfo.country = form.country.value
-			}
+    // Form submission - show payment
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        formButton.classList.add('d-none');
+        paymentInfo.classList.remove('d-none');
+        
+        // Copy phone to MoMo
+        document.getElementById('momo-phone').value = document.getElementById('phone').value;
+        validateMomoPhone();
+        
+        // Scroll to payment section
+        paymentInfo.scrollIntoView({ behavior: 'smooth' });
+    });
 
-			if(user == 'AnonymousUser'){
-				userFormData.name = form.name.value
-				userFormData.email = form.email.value
+    // Payment Method Selection
+    document.querySelectorAll('input[name="payment_method"]').forEach(function(input) {
+        input.addEventListener('change', function() {
+            selectedPaymentMethod = this.value;
+            
+            // Update UI
+            document.querySelectorAll('.payment-card').forEach(function(card) {
+                card.classList.remove('border-success', 'bg-success-subtle');
+                card.querySelector('.payment-check').classList.add('d-none');
+            });
+            
+            var selectedCard = this.nextElementSibling;
+            selectedCard.classList.add('border-success', 'bg-success-subtle');
+            selectedCard.querySelector('.payment-check').classList.remove('d-none');
+            
+            // Show/hide appropriate section
+            document.getElementById('momo-phone-section').classList.add('d-none');
+            document.getElementById('paypal-section').classList.add('d-none');
+            document.getElementById('cod-section').classList.add('d-none');
+            document.getElementById('payment-processing').classList.add('d-none');
+            
+            if (this.value === 'mtn' || this.value === 'airtel') {
+                document.getElementById('momo-phone-section').classList.remove('d-none');
+                validateMomoPhone();
+            } else if (this.value === 'paypal') {
+                document.getElementById('paypal-section').classList.remove('d-none');
+            } else if (this.value === 'cod') {
+                document.getElementById('cod-section').classList.remove('d-none');
+            }
+        });
+    });
 
-			}
-			var url = '/process_order/'
-			fetch(url,{
-				method:'POST',
-				headers:{
-					'Content-Type': 'application/json',
-					'X-CSRFToken':csrftoken,
-				},
-				body:JSON.stringify({'form':userFormData, 'shipping':shippingInfo})
-			})
-			.then((response) => response.json())
-			.then((data) => {
-				console.log('Success:', data);
-				alert('Transaction complete');
-				
-				cart = {}
-				document.cookie ='cart=' + JSON.stringify(cart) + ";domain=;path=/"
+    // MoMo phone validation
+    var momoPhoneInput = document.getElementById('momo-phone');
+    momoPhoneInput.addEventListener('input', validateMomoPhone);
 
-				window.location.href = "{% url 'store' %}"
+    function validateMomoPhone() {
+        var phone = momoPhoneInput.value.replace(/\s/g, '');
+        var hint = document.getElementById('momo-provider-hint');
+        var payBtn = document.getElementById('momo-pay-btn');
+        
+        if (phone.length === 9) {
+            var prefix = phone.substring(0, 3);
+            var mtnPrefixes = ['076', '077', '078'];
+            var airtelPrefixes = ['070', '074', '075'];
+            
+            if (mtnPrefixes.some(p => phone.startsWith(p))) {
+                hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>MTN Mobile Money number detected';
+                payBtn.disabled = false;
+                payBtn.className = 'btn btn-warning btn-lg w-100';
+            } else if (airtelPrefixes.some(p => phone.startsWith(p))) {
+                hint.innerHTML = '<i class="bi bi-check-circle text-danger me-1"></i>Airtel Money number detected';
+                payBtn.disabled = false;
+                payBtn.className = 'btn btn-danger btn-lg w-100';
+            } else {
+                hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Unknown mobile network';
+                payBtn.disabled = true;
+            }
+        } else {
+            hint.innerHTML = 'Enter 9 digits (e.g., 772 123 456)';
+            payBtn.disabled = true;
+        }
+    }
 
-			})
+    // Mobile Money Payment
+    document.getElementById('momo-pay-btn').addEventListener('click', function() {
+        var phone = '256' + document.getElementById('momo-phone').value.replace(/\s/g, '');
+        
+        // Show processing
+        document.getElementById('momo-phone-section').classList.add('d-none');
+        document.getElementById('payment-processing').classList.remove('d-none');
+        document.getElementById('payment-status-msg').textContent = 'Sending payment request to ' + phone + '...';
+        
+        // Initiate Mobile Money Payment
+        fetch('/api/momo/initiate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            },
+            body: JSON.stringify({
+                'phone': phone,
+                'amount': total,
+                'provider': selectedPaymentMethod
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('payment-status-msg').textContent = 'Payment prompt sent! Please check your phone and enter your PIN.';
+                
+                // Poll for payment status
+                pollPaymentStatus(data.payment_id, data.reference);
+            } else {
+                document.getElementById('payment-processing').classList.add('d-none');
+                document.getElementById('momo-phone-section').classList.remove('d-none');
+                showToast('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('payment-processing').classList.add('d-none');
+            document.getElementById('momo-phone-section').classList.remove('d-none');
+            showToast('An error occurred. Please try again.', 'error');
+        });
+    });
 
-		}
-	</script>
+    function pollPaymentStatus(paymentId, reference) {
+        var pollCount = 0;
+        var maxPolls = 60; // 2 minutes max
+        
+        var pollInterval = setInterval(function() {
+            pollCount++;
+            
+            fetch('/api/momo/status/?payment_id=' + paymentId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'successful') {
+                    clearInterval(pollInterval);
+                    submitFormData(reference, selectedPaymentMethod);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    document.getElementById('payment-processing').classList.add('d-none');
+                    document.getElementById('momo-phone-section').classList.remove('d-none');
+                    showToast('Payment failed: ' + (data.message || 'Transaction declined'), 'error');
+                } else if (pollCount >= maxPolls) {
+                    clearInterval(pollInterval);
+                    document.getElementById('payment-processing').classList.add('d-none');
+                    document.getElementById('momo-phone-section').classList.remove('d-none');
+                    showToast('Payment timed out. Please try again.', 'error');
+                } else {
+                    document.getElementById('payment-status-msg').textContent = 'Waiting for confirmation... (' + pollCount + 's)';
+                }
+            })
+            .catch(error => {
+                console.error('Poll error:', error);
+            });
+        }, 2000); // Poll every 2 seconds
+    }
+
+    // Cash on Delivery
+    document.getElementById('cod-btn').addEventListener('click', function() {
+        submitFormData('COD-' + Date.now(), 'cod');
+    });
+
+    // PayPal Buttons
+    paypal.Buttons({
+        style: {
+            shape: 'pill',
+            color: 'gold',
+            layout: 'vertical',
+            label: 'pay'
+        },
+
+        createOrder: function(data, actions) {
+            return actions.order.create({
+                purchase_units: [{
+                    amount: {
+                        value: usdTotal
+                    },
+                    description: 'Agri-Market Order'
+                }]
+            });
+        },
+
+        onApprove: function(data, actions) {
+            return actions.order.capture().then(function(details) {
+                // Payment successful - process order
+                submitFormData(details.id, 'paypal');
+            });
+        },
+
+        onError: function(err) {
+            console.error('PayPal Error:', err);
+            showToast('Payment failed. Please try again.', 'error');
+        }
+    }).render('#paypal-button-container');
+
+    function submitFormData(transactionId, paymentMethod) {
+        document.getElementById('payment-processing').classList.remove('d-none');
+        document.getElementById('payment-status-msg').textContent = 'Creating your order...';
+        
+        var userFormData = {
+            'name': document.getElementById('name')?.value || '{{ user.get_full_name|default:user.username }}',
+            'email': document.getElementById('email')?.value || '{{ user.email }}',
+            'total': total,
+        };
+
+        var shippingInfo = {
+            'phone': '256' + document.getElementById('phone').value.replace(/\s/g, ''),
+            'address': document.getElementById('address').value,
+            'city': document.getElementById('city').value,
+            'region': document.getElementById('region').value,
+            'zipcode': document.getElementById('zipcode').value,
+            'country': document.getElementById('country').value,
+            'landmark': document.getElementById('landmark')?.value || '',
+        };
+
+        fetch('/process_order/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            },
+            body: JSON.stringify({
+                'form': userFormData,
+                'shipping': shippingInfo,
+                'transaction_id': transactionId,
+                'payment_method': paymentMethod
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear cart cookie
+                document.cookie = 'cart={}; domain=; path=/';
+                
+                // Show success
+                document.getElementById('payment-status-msg').innerHTML = 
+                    '<i class="bi bi-check-circle-fill text-success me-2"></i>Order placed successfully! Order ID: <strong>' + data.order_id + '</strong>';
+                
+                showToast('Order placed successfully! Redirecting...', 'success');
+                
+                setTimeout(function() {
+                    window.location.href = '{% url "store" %}?order=' + data.order_id;
+                }, 2000);
+            } else {
+                document.getElementById('payment-processing').classList.add('d-none');
+                showToast('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('payment-processing').classList.add('d-none');
+            showToast('An error occurred. Please try again.', 'error');
+        });
+    }
+
+    function showToast(message, type) {
+        var toast = document.createElement('div');
+        toast.className = 'position-fixed bottom-0 end-0 p-3';
+        toast.style.zIndex = '11';
+        toast.innerHTML = `
+            <div class="toast show align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'}" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 5000);
+    }
+</script>
+
+<style>
+    .payment-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .payment-card:hover {
+        border-color: #198754 !important;
+        background-color: rgba(25, 135, 84, 0.05);
+    }
+    .payment-card.border-success {
+        border-width: 2px !important;
+    }
+</style>
+{% endblock %}
 
 {% endblock content %}
