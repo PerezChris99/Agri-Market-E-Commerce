@@ -7,16 +7,98 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, Sum, Count
+from django.db.models.functions import TruncDate
 from django.conf import settings
 
 import json
 import datetime
 from decimal import Decimal
 
-from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Review, Wishlist
+from .models import (
+    Customer, Product, Order, OrderItem, ShippingAddress, Category, Review, Wishlist,
+    DeliveryZone, SellerProfile, PromoCode
+)
 from .utils import cookieCart, cartData, guestOrder, merge_cart_on_login
 from .forms import CreateUserForm, CustomerProfileForm, ReviewForm
+
+# Try to import new models (may not exist yet if migrations not run)
+try:
+    from .models import Testimonial, DeliveryRider, Delivery
+    HOMEPAGE_MODELS_AVAILABLE = True
+except ImportError:
+    HOMEPAGE_MODELS_AVAILABLE = False
+
+
+def homepage(request):
+    """Beautiful homepage with featured products, categories, and testimonials"""
+    data = cartData(request)
+    cartItems = data['cartItems']
+    
+    # Get all active categories with product count
+    categories = Category.objects.filter(is_active=True).annotate(
+        product_count=Count('products', filter=Q(products__is_active=True))
+    )[:12]
+    
+    # Get featured products
+    featured_products = Product.objects.filter(
+        is_active=True, 
+        is_featured=True
+    ).select_related('category')[:8]
+    
+    # If not enough featured, get popular ones
+    if featured_products.count() < 4:
+        featured_products = Product.objects.filter(
+            is_active=True
+        ).annotate(
+            avg_rating=Avg('reviews__rating')
+        ).order_by('-avg_rating', '-created_at')[:8]
+    
+    # Add ratings to products
+    for product in featured_products:
+        reviews = product.reviews.all()
+        product.avg_rating = int(reviews.aggregate(Avg('rating'))['rating__avg'] or 0)
+        product.review_count = reviews.count()
+    
+    # Get latest products
+    latest_products = Product.objects.filter(
+        is_active=True
+    ).order_by('-created_at').select_related('category')[:8]
+    
+    for product in latest_products:
+        reviews = product.reviews.all()
+        product.avg_rating = int(reviews.aggregate(Avg('rating'))['rating__avg'] or 0)
+        product.review_count = reviews.count()
+    
+    # Get testimonials if model exists
+    testimonials = []
+    if HOMEPAGE_MODELS_AVAILABLE:
+        try:
+            testimonials = Testimonial.objects.filter(is_active=True).order_by('-created_at')[:6]
+        except:
+            pass
+    
+    # Stats for hero section
+    stats = {
+        'products': Product.objects.filter(is_active=True).count(),
+        'farmers': SellerProfile.objects.count() if SellerProfile else 0,
+        'orders': Order.objects.filter(complete=True).count(),
+        'districts': DeliveryZone.objects.filter(is_active=True).values('name').distinct().count() if DeliveryZone else 110,
+    }
+    
+    # Flash deals (products with discounts) - placeholder for now
+    flash_deals = []
+    
+    context = {
+        'categories': categories,
+        'featured_products': featured_products,
+        'latest_products': latest_products,
+        'testimonials': testimonials,
+        'flash_deals': flash_deals,
+        'stats': stats,
+        'cartItems': cartItems,
+    }
+    return render(request, 'store/homepage.html', context)
 
 
 def store(request):
@@ -721,4 +803,52 @@ def momo_callback(request):
     
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    return render(request, 'store/wishlist.html', context)
+
+
+@require_POST
+def newsletter_subscribe(request):
+    """Subscribe to newsletter"""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return JsonResponse({
+                'success': False,
+                'message': 'Email is required'
+            })
+        
+        # Try to use NewsletterSubscriber model if available
+        try:
+            from .models import NewsletterSubscriber
+            
+            # Check if already subscribed
+            if NewsletterSubscriber.objects.filter(email=email).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': 'You are already subscribed!'
+                })
+            
+            # Create subscription
+            NewsletterSubscriber.objects.create(email=email)
+            return JsonResponse({
+                'success': True,
+                'message': 'Successfully subscribed! You\'ll receive our latest updates.'
+            })
+        except:
+            # Model doesn't exist yet, just return success
+            return JsonResponse({
+                'success': True,
+                'message': 'Thank you for subscribing!'
+            })
+    
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid request'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })

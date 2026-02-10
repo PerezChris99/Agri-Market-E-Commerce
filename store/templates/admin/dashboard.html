@@ -1,0 +1,825 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Dashboard - Agri-Market Admin{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Leaflet.js for Maps -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Heat -->
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<style>
+    :root {
+        --primary-green: #1e5631;
+        --secondary-green: #28a745;
+        --cream: #f5f0e1;
+        --gold: #d4a843;
+    }
+    
+    .dashboard-container {
+        padding: 20px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+        min-height: 100vh;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(30, 86, 49, 0.3);
+    }
+    
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    
+    .dashboard-header p {
+        margin: 10px 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+    }
+    
+    .stat-card.green::before { background: linear-gradient(180deg, #28a745, #1e5631); }
+    .stat-card.blue::before { background: linear-gradient(180deg, #007bff, #0056b3); }
+    .stat-card.gold::before { background: linear-gradient(180deg, #ffc107, #d4a843); }
+    .stat-card.red::before { background: linear-gradient(180deg, #dc3545, #c82333); }
+    .stat-card.purple::before { background: linear-gradient(180deg, #6f42c1, #5a32a3); }
+    .stat-card.orange::before { background: linear-gradient(180deg, #fd7e14, #e36209); }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+    
+    .stat-card.green .stat-icon { background: rgba(40, 167, 69, 0.15); color: #28a745; }
+    .stat-card.blue .stat-icon { background: rgba(0, 123, 255, 0.15); color: #007bff; }
+    .stat-card.gold .stat-icon { background: rgba(255, 193, 7, 0.15); color: #d4a843; }
+    .stat-card.red .stat-icon { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+    .stat-card.purple .stat-icon { background: rgba(111, 66, 193, 0.15); color: #6f42c1; }
+    .stat-card.orange .stat-icon { background: rgba(253, 126, 20, 0.15); color: #fd7e14; }
+    
+    .stat-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #718096;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    
+    .stat-change {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    
+    .stat-change.up { background: rgba(40, 167, 69, 0.15); color: #28a745; }
+    .stat-change.down { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    @media (max-width: 1200px) {
+        .charts-grid { grid-template-columns: 1fr; }
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .chart-card h3 {
+        margin: 0 0 20px;
+        color: #2d3748;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .chart-card h3 span {
+        font-size: 24px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .chart-container.large {
+        height: 400px;
+    }
+    
+    .map-card {
+        grid-column: span 2;
+    }
+    
+    @media (max-width: 1200px) {
+        .map-card { grid-column: span 1; }
+    }
+    
+    #uganda-map {
+        height: 450px;
+        border-radius: 10px;
+        z-index: 1;
+    }
+    
+    .recent-orders {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        margin-bottom: 30px;
+    }
+    
+    .recent-orders h3 {
+        margin: 0 0 20px;
+        color: #2d3748;
+        font-weight: 600;
+    }
+    
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .orders-table th,
+    .orders-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .orders-table th {
+        background: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    
+    .orders-table tr:hover {
+        background: #f7fafc;
+    }
+    
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-pending { background: #fef3cd; color: #856404; }
+    .status-processing { background: #cce5ff; color: #004085; }
+    .status-shipped { background: #d4edda; color: #155724; }
+    .status-delivered { background: #28a745; color: white; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+    
+    .delivery-progress {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 20px;
+    }
+    
+    .progress-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .progress-step::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        width: 100%;
+        height: 3px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+    
+    .progress-step:last-child::after {
+        display: none;
+    }
+    
+    .progress-step.completed::after {
+        background: #28a745;
+    }
+    
+    .progress-dot {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        position: relative;
+        z-index: 1;
+        font-size: 14px;
+    }
+    
+    .progress-step.completed .progress-dot {
+        background: #28a745;
+        color: white;
+    }
+    
+    .progress-step.current .progress-dot {
+        background: #ffc107;
+        color: white;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+        50% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+    }
+    
+    .progress-label {
+        font-size: 0.75rem;
+        color: #718096;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .quick-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 20px;
+        background: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        color: #2d3748;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .quick-action-btn:hover {
+        background: var(--primary-green);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .quick-action-btn span {
+        font-size: 24px;
+    }
+    
+    .donut-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+    
+    .donut-center .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+    
+    .donut-center .label {
+        font-size: 0.9rem;
+        color: #718096;
+    }
+    
+    .top-products {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .top-products li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .top-products li:last-child {
+        border-bottom: none;
+    }
+    
+    .product-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .product-rank {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(40, 167, 69, 0.1);
+        padding: 5px 12px;
+        border-radius: 20px;
+        color: #28a745;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🌾 Agri-Market Dashboard</h1>
+                <p>Welcome back! Here's what's happening with your marketplace today.</p>
+            </div>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                Live Data
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="/admin/store/product/add/" class="quick-action-btn">
+            <span>➕</span> Add Product
+        </a>
+        <a href="/admin/store/order/?status=pending" class="quick-action-btn">
+            <span>📋</span> Pending Orders
+        </a>
+        <a href="/admin/store/customer/" class="quick-action-btn">
+            <span>👥</span> Customers
+        </a>
+        <a href="/admin/store/delivery/" class="quick-action-btn">
+            <span>🚚</span> Deliveries
+        </a>
+        <a href="/admin/store/review/" class="quick-action-btn">
+            <span>⭐</span> Reviews
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card green">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value">UGX {{ total_revenue|intcomma }}</div>
+            <div class="stat-label">Total Revenue</div>
+            <span class="stat-change up">↑ {{ revenue_change }}% this month</span>
+        </div>
+        <div class="stat-card blue">
+            <div class="stat-icon">📦</div>
+            <div class="stat-value">{{ total_orders|intcomma }}</div>
+            <div class="stat-label">Total Orders</div>
+            <span class="stat-change up">↑ {{ orders_change }}% this month</span>
+        </div>
+        <div class="stat-card gold">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value">{{ total_customers|intcomma }}</div>
+            <div class="stat-label">Registered Customers</div>
+            <span class="stat-change up">↑ {{ customers_change }} new</span>
+        </div>
+        <div class="stat-card purple">
+            <div class="stat-icon">🛒</div>
+            <div class="stat-value">{{ total_products }}</div>
+            <div class="stat-label">Active Products</div>
+        </div>
+        <div class="stat-card orange">
+            <div class="stat-icon">🚚</div>
+            <div class="stat-value">{{ active_deliveries }}</div>
+            <div class="stat-label">Active Deliveries</div>
+        </div>
+        <div class="stat-card red">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value">{{ pending_orders }}</div>
+            <div class="stat-label">Pending Orders</div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="charts-grid">
+        <!-- Sales Line Chart -->
+        <div class="chart-card">
+            <h3><span>📈</span> Sales Trend (Last 30 Days)</h3>
+            <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Orders Bar Chart -->
+        <div class="chart-card">
+            <h3><span>📊</span> Orders by Status</h3>
+            <div class="chart-container">
+                <canvas id="ordersChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Category Pie Chart -->
+        <div class="chart-card">
+            <h3><span>🥧</span> Sales by Category</h3>
+            <div class="chart-container" style="position: relative;">
+                <canvas id="categoryPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Payment Methods Donut -->
+        <div class="chart-card">
+            <h3><span>💳</span> Payment Methods</h3>
+            <div class="chart-container" style="position: relative;">
+                <canvas id="paymentDonutChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Uganda Map -->
+        <div class="chart-card map-card">
+            <h3><span>🗺️</span> Order Density by Region</h3>
+            <div id="uganda-map"></div>
+        </div>
+    </div>
+
+    <!-- Recent Orders & Top Products -->
+    <div class="charts-grid">
+        <div class="recent-orders">
+            <h3>🕐 Recent Orders</h3>
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td><a href="/admin/store/order/{{ order.id }}/change/">{{ order.order_id }}</a></td>
+                        <td>{{ order.customer.name|default:order.guest_name }}</td>
+                        <td>UGX {{ order.get_cart_total|intcomma }}</td>
+                        <td>
+                            <span class="status-badge status-{{ order.status }}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ order.date_ordered|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #718096;">No orders yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-card">
+            <h3><span>🏆</span> Top Selling Products</h3>
+            <ul class="top-products">
+                {% for product in top_products %}
+                <li>
+                    <div class="product-info">
+                        <span class="product-rank">{{ forloop.counter }}</span>
+                        <div>
+                            <strong>{{ product.name }}</strong>
+                            <div style="font-size: 0.85rem; color: #718096;">
+                                {{ product.category.name }}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>{{ product.total_sold }} sold</strong>
+                        <div style="font-size: 0.85rem; color: #718096;">
+                            UGX {{ product.revenue|intcomma }}
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <li style="text-align: center; color: #718096; justify-content: center;">No sales data yet</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Delivery Progress Sample -->
+    <div class="recent-orders">
+        <h3>🚚 Active Deliveries</h3>
+        {% for delivery in active_delivery_list %}
+        <div style="background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <strong>Order #{{ delivery.order.order_id }}</strong>
+                    <span style="margin-left: 10px; color: #718096;">{{ delivery.order.customer.name|default:delivery.order.guest_name }}</span>
+                </div>
+                <span class="status-badge status-{{ delivery.status }}">{{ delivery.get_status_display }}</span>
+            </div>
+            <div class="delivery-progress">
+                <div class="progress-step {% if delivery.status != 'pending' %}completed{% endif %}">
+                    <div class="progress-dot">✓</div>
+                    <div class="progress-label">Confirmed</div>
+                </div>
+                <div class="progress-step {% if delivery.status in 'picked_up,in_transit,delivered' %}completed{% elif delivery.status == 'assigned' %}current{% endif %}">
+                    <div class="progress-dot">📦</div>
+                    <div class="progress-label">Picked Up</div>
+                </div>
+                <div class="progress-step {% if delivery.status in 'in_transit,delivered' %}completed{% elif delivery.status == 'picked_up' %}current{% endif %}">
+                    <div class="progress-dot">🚚</div>
+                    <div class="progress-label">In Transit</div>
+                </div>
+                <div class="progress-step {% if delivery.status == 'delivered' %}completed{% elif delivery.status == 'in_transit' %}current{% endif %}">
+                    <div class="progress-dot">📍</div>
+                    <div class="progress-label">Delivered</div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="text-align: center; color: #718096;">No active deliveries</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Segoe UI', 'Roboto', sans-serif";
+    
+    // Sales Line Chart
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: {{ sales_labels|safe }},
+            datasets: [{
+                label: 'Revenue (UGX)',
+                data: {{ sales_data|safe }},
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: '#28a745',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'UGX ' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'UGX ' + (value / 1000) + 'K';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Orders Bar Chart
+    const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+    new Chart(ordersCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+            datasets: [{
+                label: 'Orders',
+                data: {{ orders_by_status|safe }},
+                backgroundColor: [
+                    '#ffc107',
+                    '#17a2b8',
+                    '#007bff',
+                    '#28a745',
+                    '#dc3545'
+                ],
+                borderRadius: 8,
+                barThickness: 40
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Category Pie Chart (Pizza Style)
+    const categoryCtx = document.getElementById('categoryPieChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ category_labels|safe }},
+            datasets: [{
+                data: {{ category_data|safe }},
+                backgroundColor: [
+                    '#28a745', '#1e5631', '#d4a843', '#17a2b8', '#6f42c1',
+                    '#fd7e14', '#e83e8c', '#20c997', '#007bff', '#dc3545', '#6c757d'
+                ],
+                borderWidth: 3,
+                borderColor: '#fff',
+                hoverOffset: 15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { padding: 15 }
+                }
+            }
+        }
+    });
+
+    // Payment Methods Donut Chart
+    const paymentCtx = document.getElementById('paymentDonutChart').getContext('2d');
+    new Chart(paymentCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ payment_labels|safe }},
+            datasets: [{
+                data: {{ payment_data|safe }},
+                backgroundColor: [
+                    '#ffc107',  // MTN Yellow
+                    '#dc3545',  // Airtel Red
+                    '#003087',  // PayPal Blue
+                    '#28a745'   // COD Green
+                ],
+                borderWidth: 0,
+                cutout: '70%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 20 }
+                }
+            }
+        }
+    });
+
+    // Uganda Map with Order Density
+    const map = L.map('uganda-map').setView([1.3733, 32.2903], 7);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Order locations (sample data - would be dynamic)
+    const orderLocations = {{ order_locations|safe }};
+    
+    // Add markers for each region
+    const regionCenters = {
+        'Central Region': [0.3476, 32.5825],
+        'Eastern Region': [1.2513, 33.7518],
+        'Northern Region': [2.7747, 32.2989],
+        'Western Region': [0.6180, 30.2565]
+    };
+    
+    // Heat map layer
+    if (orderLocations.length > 0) {
+        const heat = L.heatLayer(orderLocations, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 10,
+            gradient: {0.4: '#ffffb2', 0.65: '#fd8d3c', 1: '#bd0026'}
+        }).addTo(map);
+    }
+    
+    // Region markers
+    Object.entries(regionCenters).forEach(([region, coords]) => {
+        const count = {{ region_order_counts|safe }}[region] || 0;
+        L.circleMarker(coords, {
+            radius: Math.min(30, 10 + count / 5),
+            fillColor: '#28a745',
+            color: '#1e5631',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.7
+        }).addTo(map).bindPopup(`<strong>${region}</strong><br>${count} orders`);
+    });
+
+    // Auto-refresh data every 30 seconds
+    setInterval(function() {
+        // In production, this would fetch updated stats via AJAX
+        console.log('Dashboard refreshed');
+    }, 30000);
+</script>
+{% endblock %}

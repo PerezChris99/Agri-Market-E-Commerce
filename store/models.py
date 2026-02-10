@@ -316,13 +316,26 @@ class Wishlist(models.Model):
 
 
 class Review(models.Model):
-    """Product reviews and ratings"""
+    """Product reviews and ratings with enhanced features"""
     RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
     
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     rating = models.IntegerField(choices=RATING_CHOICES)
+    title = models.CharField(max_length=200, blank=True)
     comment = models.TextField()
+    
+    # Verification
+    is_verified_purchase = models.BooleanField(default=False)
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Moderation
+    is_approved = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    
+    # Engagement
+    helpful_count = models.PositiveIntegerField(default=0)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -686,3 +699,288 @@ class USSDSession(models.Model):
         if not self.expires_at:
             self.expires_at = timezone.now() + timezone.timedelta(minutes=5)
         super().save(*args, **kwargs)
+
+
+# ============================================
+# DELIVERY TRACKING SYSTEM
+# ============================================
+
+class DeliveryRider(models.Model):
+    """Delivery riders/boda-boda drivers"""
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=15)
+    alternate_phone = models.CharField(max_length=15, blank=True)
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('boda', 'Boda-Boda (Motorcycle)'),
+            ('car', 'Car'),
+            ('van', 'Van'),
+            ('truck', 'Truck'),
+            ('bicycle', 'Bicycle'),
+        ],
+        default='boda'
+    )
+    vehicle_number = models.CharField(max_length=20, blank=True)
+    
+    # Performance
+    total_deliveries = models.PositiveIntegerField(default=0)
+    successful_deliveries = models.PositiveIntegerField(default=0)
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal('5.00'))
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_available = models.BooleanField(default=True)
+    current_location_lat = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    current_location_lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    
+    # Zones
+    assigned_zones = models.ManyToManyField(DeliveryZone, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.vehicle_type})"
+    
+    @property
+    def success_rate(self):
+        if self.total_deliveries == 0:
+            return 100
+        return round((self.successful_deliveries / self.total_deliveries) * 100, 1)
+
+
+class Delivery(models.Model):
+    """Delivery tracking for orders"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending Assignment'),
+        ('assigned', 'Rider Assigned'),
+        ('picked_up', 'Picked Up'),
+        ('in_transit', 'In Transit'),
+        ('nearby', 'Nearby Destination'),
+        ('delivered', 'Delivered'),
+        ('failed', 'Delivery Failed'),
+        ('returned', 'Returned'),
+    ]
+    
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='delivery')
+    rider = models.ForeignKey(DeliveryRider, on_delete=models.SET_NULL, null=True, blank=True, related_name='deliveries')
+    
+    # Status tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status_history = models.JSONField(default=list, blank=True)  # Track all status changes
+    
+    # Timing
+    estimated_delivery = models.DateTimeField(null=True, blank=True)
+    actual_delivery = models.DateTimeField(null=True, blank=True)
+    picked_up_at = models.DateTimeField(null=True, blank=True)
+    
+    # Location tracking
+    current_lat = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    current_lng = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    
+    # Delivery details
+    delivery_notes = models.TextField(blank=True)
+    signature_image = models.ImageField(upload_to='delivery_signatures/', null=True, blank=True)
+    delivery_photo = models.ImageField(upload_to='delivery_photos/', null=True, blank=True)
+    
+    # Rating
+    customer_rating = models.PositiveIntegerField(null=True, blank=True)  # 1-5
+    customer_feedback = models.TextField(blank=True)
+    
+    # OTP verification
+    delivery_otp = models.CharField(max_length=6, blank=True)
+    otp_verified = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Delivery for {self.order.order_id}"
+    
+    def save(self, *args, **kwargs):
+        # Generate OTP if not exists
+        if not self.delivery_otp:
+            import random
+            self.delivery_otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        super().save(*args, **kwargs)
+    
+    def update_status(self, new_status, notes=''):
+        """Update delivery status and track in history"""
+        old_status = self.status
+        self.status = new_status
+        
+        # Add to history
+        self.status_history.append({
+            'from': old_status,
+            'to': new_status,
+            'timestamp': timezone.now().isoformat(),
+            'notes': notes
+        })
+        
+        # Update timestamps
+        if new_status == 'picked_up':
+            self.picked_up_at = timezone.now()
+        elif new_status == 'delivered':
+            self.actual_delivery = timezone.now()
+            if self.rider:
+                self.rider.total_deliveries += 1
+                self.rider.successful_deliveries += 1
+                self.rider.save()
+        elif new_status == 'failed':
+            if self.rider:
+                self.rider.total_deliveries += 1
+                self.rider.save()
+        
+        self.save()
+    
+    def get_tracking_timeline(self):
+        """Get formatted timeline for frontend"""
+        timeline = [
+            {'status': 'pending', 'label': 'Order Confirmed', 'icon': '✓'},
+            {'status': 'assigned', 'label': 'Rider Assigned', 'icon': '👤'},
+            {'status': 'picked_up', 'label': 'Picked Up', 'icon': '📦'},
+            {'status': 'in_transit', 'label': 'In Transit', 'icon': '🚚'},
+            {'status': 'delivered', 'label': 'Delivered', 'icon': '📍'},
+        ]
+        
+        status_order = ['pending', 'assigned', 'picked_up', 'in_transit', 'nearby', 'delivered']
+        current_index = status_order.index(self.status) if self.status in status_order else 0
+        
+        for i, step in enumerate(timeline):
+            if i < current_index:
+                step['completed'] = True
+                step['current'] = False
+            elif i == current_index:
+                step['completed'] = False
+                step['current'] = True
+            else:
+                step['completed'] = False
+                step['current'] = False
+        
+        return timeline
+
+
+class DeliveryLocation(models.Model):
+    """Track delivery rider location history"""
+    delivery = models.ForeignKey(Delivery, on_delete=models.CASCADE, related_name='location_history')
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    accuracy = models.FloatField(null=True, blank=True)  # GPS accuracy in meters
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.delivery.order.order_id} - {self.timestamp}"
+
+
+# ============================================
+# ENHANCED REVIEWS WITH PHOTOS
+# ============================================
+
+class ReviewImage(models.Model):
+    """Images attached to product reviews"""
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='review_images/')
+    caption = models.CharField(max_length=200, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Image for review of {self.review.product.name}"
+
+
+class ReviewHelpful(models.Model):
+    """Track helpful votes on reviews"""
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='helpful_votes')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    is_helpful = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['review', 'customer']
+
+
+# ============================================
+# TESTIMONIALS
+# ============================================
+
+class Testimonial(models.Model):
+    """Customer testimonials for homepage"""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=200)
+    role = models.CharField(max_length=100, blank=True, help_text="e.g., Farmer, Restaurant Owner")
+    location = models.CharField(max_length=100, blank=True)
+    photo = models.ImageField(upload_to='testimonials/', null=True, blank=True)
+    content = models.TextField()
+    rating = models.PositiveIntegerField(default=5, choices=[(i, str(i)) for i in range(1, 6)])
+    is_featured = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-is_featured', '-created_at']
+    
+    def __str__(self):
+        return f"{self.name} - {self.rating}★"
+
+
+# ============================================
+# NEWSLETTER
+# ============================================
+
+class NewsletterSubscriber(models.Model):
+    """Newsletter email subscribers"""
+    email = models.EmailField(unique=True)
+    name = models.CharField(max_length=200, blank=True)
+    is_active = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return self.email
+
+
+# ============================================
+# CONTACT MESSAGES
+# ============================================
+
+class ContactMessage(models.Model):
+    """Contact form submissions"""
+    name = models.CharField(max_length=200)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True)
+    subject = models.CharField(max_length=300)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    is_replied = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.subject} - {self.name}"
+
+
+# ============================================
+# SITE SETTINGS
+# ============================================
+
+class SiteSetting(models.Model):
+    """Dynamic site settings"""
+    key = models.CharField(max_length=100, unique=True)
+    value = models.TextField()
+    description = models.CharField(max_length=200, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.key
+    
+    @classmethod
+    def get(cls, key, default=''):
+        try:
+            return cls.objects.get(key=key).value
+        except cls.DoesNotExist:
+            return default
+

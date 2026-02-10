@@ -1,0 +1,632 @@
+{% extends 'store/main.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Agri-Market Uganda - Fresh Farm Products Delivered{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="hero-badge animate-fadeIn">
+            <span>🇺🇬</span> Uganda's #1 Agricultural Marketplace
+        </div>
+        <h1 class="hero-title animate-fadeIn">Fresh From Farm<br>To Your Table</h1>
+        <p class="hero-subtitle animate-fadeIn">
+            Connect directly with local farmers. Get the freshest produce, dairy, meats, 
+            and more delivered straight to your doorstep.
+        </p>
+        <div class="hero-buttons animate-fadeIn">
+            <a href="{% url 'store' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-basket2-fill me-2"></i>Shop Now
+            </a>
+            <a href="#how-it-works" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-play-circle me-2"></i>How It Works
+            </a>
+        </div>
+        <div class="hero-stats animate-fadeIn">
+            <div class="stat-item">
+                <span class="stat-number" data-count="{{ stats.products }}">0</span>
+                <span class="stat-label">Products</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-number" data-count="{{ stats.farmers }}">0</span>
+                <span class="stat-label">Farmers</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-number" data-count="{{ stats.orders }}">0</span>
+                <span class="stat-label">Orders Delivered</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-number" data-count="{{ stats.districts }}">0</span>
+                <span class="stat-label">Districts Covered</span>
+            </div>
+        </div>
+    </div>
+    <div class="hero-scroll-indicator">
+        <i class="bi bi-chevron-double-down"></i>
+    </div>
+</section>
+
+<!-- Trust Badges -->
+<section class="trust-badges">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-6 col-md-3 text-center mb-3 mb-md-0">
+                <div class="trust-item">
+                    <i class="bi bi-shield-check"></i>
+                    <span>100% Fresh Guarantee</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 text-center mb-3 mb-md-0">
+                <div class="trust-item">
+                    <i class="bi bi-truck"></i>
+                    <span>Free Delivery 100K+</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+                <div class="trust-item">
+                    <i class="bi bi-phone"></i>
+                    <span>MTN/Airtel Money</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+                <div class="trust-item">
+                    <i class="bi bi-headset"></i>
+                    <span>24/7 Support</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Section -->
+<section class="categories-section py-5">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <span class="section-tag">Browse By Category</span>
+            <h2 class="section-title">What Are You Looking For?</h2>
+        </div>
+        <div class="categories-grid">
+            {% for category in categories %}
+            <a href="{% url 'store' %}?category={{ category.slug }}" class="category-card">
+                <div class="category-icon">
+                    {% if category.slug == 'fresh-fruits' %}🍎{% endif %}
+                    {% if category.slug == 'vegetables' %}🥬{% endif %}
+                    {% if category.slug == 'grains-cereals' %}🌾{% endif %}
+                    {% if category.slug == 'legumes-pulses' %}🫘{% endif %}
+                    {% if category.slug == 'roots-tubers' %}🥔{% endif %}
+                    {% if category.slug == 'dairy-eggs' %}🥛{% endif %}
+                    {% if category.slug == 'poultry-meat' %}🍗{% endif %}
+                    {% if category.slug == 'fish-seafood' %}🐟{% endif %}
+                    {% if category.slug == 'coffee-tea' %}☕{% endif %}
+                    {% if category.slug == 'honey-bee-products' %}🍯{% endif %}
+                    {% if category.slug == 'oil-seeds' %}🌻{% endif %}
+                    {% if category.slug == 'herbs-spices' %}🌿{% endif %}
+                </div>
+                <h3>{{ category.name }}</h3>
+                <span class="product-count">{{ category.product_count }} products</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section class="featured-section py-5 bg-light">
+    <div class="container">
+        <div class="section-header d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="section-tag">Handpicked For You</span>
+                <h2 class="section-title">Featured Products</h2>
+            </div>
+            <a href="{% url 'store' %}" class="btn btn-outline-success">
+                View All <i class="bi bi-arrow-right ms-2"></i>
+            </a>
+        </div>
+        <div class="row g-4">
+            {% for product in featured_products %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="product-card h-100">
+                    {% if product.is_featured %}
+                    <span class="product-badge badge-featured">⭐ Featured</span>
+                    {% endif %}
+                    {% if product.stock < 10 and product.stock > 0 %}
+                    <span class="product-badge badge-low-stock">Only {{ product.stock }} left</span>
+                    {% endif %}
+                    <div class="product-image-wrapper">
+                        <img src="{{ product.imageURL }}" alt="{{ product.name }}" class="product-image">
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart-btn" data-product="{{ product.id }}" data-action="add">
+                                <i class="bi bi-cart-plus"></i>
+                            </button>
+                            <button class="action-btn wishlist-btn" data-product="{{ product.id }}">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <span class="product-category">{{ product.category.name }}</span>
+                        <h5 class="product-name">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h5>
+                        <div class="product-rating">
+                            {% for i in "12345" %}
+                            <i class="bi bi-star-fill {% if forloop.counter <= product.avg_rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                            {% endfor %}
+                            <span class="rating-count">({{ product.review_count }})</span>
+                        </div>
+                        <div class="product-price-row">
+                            <span class="product-price">UGX {{ product.price|intcomma }}</span>
+                            <span class="product-unit">/ {{ product.get_unit_display }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section id="how-it-works" class="how-it-works-section py-5">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <span class="section-tag">Simple & Easy</span>
+            <h2 class="section-title">How It Works</h2>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">🔍</div>
+                    <h4>Browse Products</h4>
+                    <p>Explore fresh produce from verified local farmers across Uganda</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">🛒</div>
+                    <h4>Add to Cart</h4>
+                    <p>Select your items and add them to your shopping cart</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">💳</div>
+                    <h4>Pay Easily</h4>
+                    <p>Pay with MTN MoMo, Airtel Money, or Cash on Delivery</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <div class="step-icon">🚚</div>
+                    <h4>We Deliver</h4>
+                    <p>Track your order in real-time as it arrives at your door</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Flash Deals -->
+{% if flash_deals %}
+<section class="flash-deals-section py-5 bg-danger text-white">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-0"><i class="bi bi-lightning-charge-fill"></i> Flash Deals</h2>
+                <p class="mb-0">Limited time offers - Hurry!</p>
+            </div>
+            <div class="countdown-timer" id="flash-countdown">
+                <span class="countdown-item"><span id="hours">00</span>h</span>
+                <span class="countdown-item"><span id="minutes">00</span>m</span>
+                <span class="countdown-item"><span id="seconds">00</span>s</span>
+            </div>
+        </div>
+        <div class="row g-4">
+            {% for deal in flash_deals %}
+            <div class="col-6 col-md-3">
+                <div class="deal-card">
+                    <span class="deal-discount">-{{ deal.discount_percent }}%</span>
+                    <img src="{{ deal.product.imageURL }}" alt="{{ deal.product.name }}">
+                    <h5>{{ deal.product.name }}</h5>
+                    <div class="deal-prices">
+                        <span class="old-price">UGX {{ deal.original_price|intcomma }}</span>
+                        <span class="new-price">UGX {{ deal.sale_price|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Testimonials -->
+<section class="testimonials-section py-5 bg-light">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <span class="section-tag">What People Say</span>
+            <h2 class="section-title">Customer Testimonials</h2>
+        </div>
+        <div class="row g-4">
+            {% for testimonial in testimonials %}
+            <div class="col-md-4">
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        {% for i in "12345" %}
+                        <i class="bi bi-star-fill {% if forloop.counter <= testimonial.rating %}text-warning{% endif %}"></i>
+                        {% endfor %}
+                    </div>
+                    <p class="testimonial-content">"{{ testimonial.content }}"</p>
+                    <div class="testimonial-author">
+                        {% if testimonial.photo %}
+                        <img src="{{ testimonial.photo.url }}" alt="{{ testimonial.name }}" class="author-photo">
+                        {% else %}
+                        <div class="author-photo-placeholder">{{ testimonial.name|slice:":1" }}</div>
+                        {% endif %}
+                        <div class="author-info">
+                            <strong>{{ testimonial.name }}</strong>
+                            <span>{{ testimonial.role }}{% if testimonial.location %}, {{ testimonial.location }}{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">Testimonials coming soon!</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Why Choose Us -->
+<section class="why-us-section py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <span class="section-tag">Why Agri-Market?</span>
+                <h2 class="section-title">The Best Way to Shop for Fresh Farm Products</h2>
+                <p class="lead text-muted mb-4">
+                    We connect you directly with local farmers, ensuring you get the freshest 
+                    products at the best prices while supporting Ugandan agriculture.
+                </p>
+                <div class="why-us-list">
+                    <div class="why-item">
+                        <div class="why-icon"><i class="bi bi-patch-check-fill"></i></div>
+                        <div class="why-content">
+                            <h5>Verified Farmers</h5>
+                            <p>All our farmers are verified and quality-checked</p>
+                        </div>
+                    </div>
+                    <div class="why-item">
+                        <div class="why-icon"><i class="bi bi-speedometer2"></i></div>
+                        <div class="why-content">
+                            <h5>Fast Delivery</h5>
+                            <p>Same-day delivery in Kampala, 1-3 days nationwide</p>
+                        </div>
+                    </div>
+                    <div class="why-item">
+                        <div class="why-icon"><i class="bi bi-arrow-repeat"></i></div>
+                        <div class="why-content">
+                            <h5>Easy Returns</h5>
+                            <p>Not satisfied? Get a full refund, no questions asked</p>
+                        </div>
+                    </div>
+                    <div class="why-item">
+                        <div class="why-icon"><i class="bi bi-cash-coin"></i></div>
+                        <div class="why-content">
+                            <h5>Best Prices</h5>
+                            <p>Direct from farm means no middlemen markup</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="why-us-image">
+                    <div class="image-grid">
+                        <div class="grid-item large" style="background: url('https://images.unsplash.com/photo-1560493676-04071c5f467b?w=500') center/cover;">
+                            <span class="image-tag">Fresh Harvest</span>
+                        </div>
+                        <div class="grid-item" style="background: url('https://images.unsplash.com/photo-1595855759920-86582396756a?w=300') center/cover;"></div>
+                        <div class="grid-item" style="background: url('https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=300') center/cover;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Newsletter -->
+<section class="newsletter-section py-5">
+    <div class="container">
+        <div class="newsletter-card">
+            <div class="row align-items-center">
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <h3><i class="bi bi-envelope-heart me-2"></i>Join Our Newsletter</h3>
+                    <p class="mb-0">Get exclusive deals, farming tips, and new product alerts delivered to your inbox.</p>
+                </div>
+                <div class="col-lg-6">
+                    <form id="newsletter-form" class="newsletter-form">
+                        <div class="input-group">
+                            <input type="email" class="form-control form-control-lg" placeholder="Enter your email" required>
+                            <button type="submit" class="btn btn-success btn-lg">Subscribe</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- App Download CTA -->
+<section class="app-cta-section py-5 bg-success text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-7 mb-4 mb-lg-0">
+                <h2><i class="bi bi-phone me-2"></i>Track Your Orders On-The-Go</h2>
+                <p class="lead mb-4">
+                    Real-time delivery tracking with SMS and WhatsApp updates. 
+                    Know exactly when your fresh produce arrives!
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <div class="feature-pill">
+                        <i class="bi bi-geo-alt-fill"></i> Live GPS Tracking
+                    </div>
+                    <div class="feature-pill">
+                        <i class="bi bi-chat-dots-fill"></i> SMS Updates
+                    </div>
+                    <div class="feature-pill">
+                        <i class="bi bi-whatsapp"></i> WhatsApp Alerts
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5 text-center">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="tracking-preview">
+                            <div class="tracking-header">
+                                <i class="bi bi-box-seam"></i>
+                                Order #AGR-12345
+                            </div>
+                            <div class="tracking-status">
+                                <span class="status-dot active"></span>
+                                In Transit
+                            </div>
+                            <div class="tracking-eta">
+                                Arriving in 15 minutes
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Latest Products -->
+<section class="latest-products-section py-5">
+    <div class="container">
+        <div class="section-header d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="section-tag">Just Added</span>
+                <h2 class="section-title">Latest Products</h2>
+            </div>
+            <a href="{% url 'store' %}?sort=newest" class="btn btn-outline-success">
+                View All <i class="bi bi-arrow-right ms-2"></i>
+            </a>
+        </div>
+        <div class="row g-4">
+            {% for product in latest_products %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="product-card h-100">
+                    <span class="product-badge badge-new">New</span>
+                    <div class="product-image-wrapper">
+                        <img src="{{ product.imageURL }}" alt="{{ product.name }}" class="product-image">
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart-btn" data-product="{{ product.id }}" data-action="add">
+                                <i class="bi bi-cart-plus"></i>
+                            </button>
+                            <button class="action-btn wishlist-btn" data-product="{{ product.id }}">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <span class="product-category">{{ product.category.name }}</span>
+                        <h5 class="product-name">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h5>
+                        <div class="product-price-row">
+                            <span class="product-price">UGX {{ product.price|intcomma }}</span>
+                            <span class="product-unit">/ {{ product.get_unit_display }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-section py-5 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4 mb-4 mb-lg-0">
+                <div class="contact-info-card">
+                    <h3>Get In Touch</h3>
+                    <p class="text-muted">Have questions? We're here to help 24/7!</p>
+                    
+                    <div class="contact-item">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <div>
+                            <strong>Address</strong>
+                            <p>Plot 123, Kampala Road<br>Kampala, Uganda</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <i class="bi bi-telephone-fill"></i>
+                        <div>
+                            <strong>Phone</strong>
+                            <p>+256 700 000 000</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <i class="bi bi-envelope-fill"></i>
+                        <div>
+                            <strong>Email</strong>
+                            <p>support@agrimarket.ug</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <i class="bi bi-whatsapp"></i>
+                        <div>
+                            <strong>WhatsApp</strong>
+                            <p>+256 700 000 000</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="contact-form-card">
+                    <h3>Send Us a Message</h3>
+                    <form id="contact-form">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" placeholder="Your Name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="email" class="form-control" placeholder="Your Email" required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="tel" class="form-control" placeholder="Phone (Optional)">
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-select">
+                                    <option value="">Select Subject</option>
+                                    <option value="order">Order Issue</option>
+                                    <option value="delivery">Delivery Question</option>
+                                    <option value="product">Product Inquiry</option>
+                                    <option value="partnership">Partnership</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <textarea class="form-control" rows="4" placeholder="Your Message" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-send me-2"></i>Send Message
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- WhatsApp Float Button -->
+<a href="https://wa.me/256700000000?text=Hi%20Agri-Market!%20I%20have%20a%20question" class="whatsapp-float" target="_blank">
+    <i class="bi bi-whatsapp"></i>
+</a>
+
+{% block extra_js %}
+<script>
+    // Counter Animation
+    function animateCounters() {
+        const counters = document.querySelectorAll('.stat-number');
+        counters.forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-count'));
+            const duration = 2000;
+            const step = target / (duration / 16);
+            let current = 0;
+            
+            const updateCounter = () => {
+                current += step;
+                if (current < target) {
+                    counter.textContent = Math.floor(current).toLocaleString();
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    counter.textContent = target.toLocaleString();
+                }
+            };
+            updateCounter();
+        });
+    }
+    
+    // Run on scroll into view
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateCounters();
+                observer.disconnect();
+            }
+        });
+    });
+    observer.observe(document.querySelector('.hero-stats'));
+
+    // Flash deal countdown
+    function updateCountdown() {
+        const now = new Date();
+        const midnight = new Date();
+        midnight.setHours(24, 0, 0, 0);
+        const diff = midnight - now;
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+        document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+        document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+    }
+    
+    if (document.getElementById('flash-countdown')) {
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+    }
+
+    // Newsletter form
+    document.getElementById('newsletter-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = this.querySelector('input').value;
+        
+        fetch('/api/newsletter/subscribe/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showToast(data.message, data.success ? 'success' : 'error');
+            if (data.success) this.reset();
+        });
+    });
+
+    // Contact form
+    document.getElementById('contact-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        showToast('Message sent successfully! We\'ll get back to you soon.', 'success');
+        this.reset();
+    });
+</script>
+{% endblock %}
+{% endblock content %}

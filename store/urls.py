@@ -3,7 +3,8 @@ from . import views
 
 urlpatterns = [
     # Main pages
-    path('', views.store, name="store"),
+    path('', views.homepage, name="homepage"),  # Beautiful homepage
+    path('shop/', views.store, name="store"),   # Product listing
     path('product/<slug:slug>/', views.product_detail, name="product_detail"),
     
     # Cart & Checkout
@@ -33,4 +34,7 @@ urlpatterns = [
     path('api/momo/initiate/', views.initiate_momo_payment, name="momo_initiate"),
     path('api/momo/status/', views.check_momo_status, name="momo_status"),
     path('api/momo/callback/', views.momo_callback, name="momo_callback"),
+    
+    # Newsletter API
+    path('api/newsletter/subscribe/', views.newsletter_subscribe, name="newsletter_subscribe"),
 ]
