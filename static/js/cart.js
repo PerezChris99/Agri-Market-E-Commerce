@@ -51,7 +51,7 @@ function initializeWishlistButtons() {
 }
 
 function updateDatabaseCart(productId, action) {
-    fetch('/update_item/', {
+    fetchWithTimeout('/update_item/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ function updateCartCounter(count) {
 }
 
 function toggleWishlist(productId, buttonElement) {
-    fetch('/toggle-wishlist/', {
+    fetchWithTimeout('/toggle-wishlist/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
