@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Avg, Sum, Count, F
 from django.db.models.functions import TruncDate, Coalesce
 from django.conf import settings
+from django.db import transaction
 
 import json
 import datetime
@@ -707,6 +708,7 @@ def check_momo_status(request):
                 payment.mark_failed('Provider amount does not match the order amount.')
                 return JsonResponse({'success': False, 'status': 'failed', 'message': 'Payment amount verification failed.'}, status=400)
             payment.mark_successful(provider_reference=details.get('transaction_id') or payment.provider_reference)
+            _enqueue_payment_sms(payment.order_id)
             return JsonResponse({'success': True, 'status': 'successful', 'message': 'Payment completed.'})
 
         if status == 'failed':
@@ -719,6 +721,15 @@ def check_momo_status(request):
         logger = __import__('logging').getLogger(__name__)
         logger.exception('Unexpected mobile-money status error')
         return JsonResponse({'success': False, 'message': 'Could not check payment status.'}, status=500)
+
+
+def _enqueue_payment_sms(order_id):
+    """Queue payment SMS after the database transaction commits."""
+    try:
+        from .tasks import send_order_sms_task
+        transaction.on_commit(lambda: send_order_sms_task.delay(order_id, 'payment_received'))
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Unable to queue payment SMS for order=%s', order_id)
 
 
 def _verify_payment_webhook(request):
@@ -799,6 +810,7 @@ def momo_callback(request):
         status = str(data.get('status') or nested.get('status') or '').lower()
         if status in {'successful', 'success', 'completed'}:
             payment.mark_successful(provider_reference=str(provider_reference or reference or payment.provider_reference))
+            _enqueue_payment_sms(payment.order_id)
         elif status in {'failed', 'cancelled', 'declined', 'error'}:
             payment.mark_failed(data.get('message') or nested.get('message') or 'Transaction failed.')
         else:
