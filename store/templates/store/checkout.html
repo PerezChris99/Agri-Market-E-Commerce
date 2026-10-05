@@ -9,7 +9,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row" id="checkout-page"
+     data-total="{{ order.get_cart_total }}"
+     data-shipping="{{ order.requires_shipping|yesno:'true,false' }}"
+     data-store-url="{% url 'store' %}"
+     data-user-name="{{ user.get_full_name|default:user.username|escape }}"
+     data-user-email="{{ user.email|escape }}">
     <div class="col-12">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
@@ -343,24 +348,10 @@
 
 {% block extra_js %}
 <!-- PayPal SDK -->
-<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD"></script>
-
-<!-- Checkout Data for JS -->
-<script>
-    window.checkoutData = {
-        total: {{ order.get_cart_total }},
-        shipping: '{{ order.requires_shipping }}' === 'True',
-        csrftoken: '{{ csrf_token }}',
-        storeUrl: '{% url "store" %}',
-        userInfo: {
-            name: '{{ user.get_full_name|default:user.username|escapejs }}',
-            email: '{{ user.email|escapejs }}'
-        }
-    };
-</script>
+<script defer src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id|urlencode }}&currency=USD"></script>
 
 <!-- External Checkout JS -->
-<script src="{% static 'js/checkout.js' %}"></script>
+<script defer src="{% static 'js/checkout.js' %}"></script>
 {% endblock %}
 
 {% endblock content %}
