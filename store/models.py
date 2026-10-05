@@ -1,4 +1,5 @@
-from django.db import models
+from django.db import models, transaction
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -137,10 +138,14 @@ class Product(models.Model):
         return self.stock > 0
 
     def reduce_stock(self, quantity):
-        """Reduce stock after purchase"""
-        if self.stock >= quantity:
-            self.stock -= quantity
-            self.save()
+        """Atomically reduce stock and reject overselling under concurrency."""
+        if quantity <= 0:
+            raise ValueError('Quantity must be greater than zero')
+        updated = Product.objects.filter(pk=self.pk, stock__gte=quantity).update(
+            stock=models.F('stock') - quantity
+        )
+        if updated:
+            self.refresh_from_db(fields=['stock'])
             return True
         return False
 
@@ -213,18 +218,39 @@ class Order(models.Model):
         return total
 
     def mark_as_paid(self, transaction_id, payment_method='paypal'):
-        """Mark order as paid"""
-        self.transaction_id = transaction_id
-        self.payment_method = payment_method
-        self.payment_status = 'completed'
-        self.complete = True
-        self.status = 'processing'
-        self.save()
-        
-        # Reduce stock for all items
-        for item in self.items.all():
-            if item.product:
-                item.product.reduce_stock(item.quantity)
+        """Mark an order paid exactly once and decrement inventory atomically."""
+        if not transaction_id:
+            raise ValueError('A transaction ID is required to mark an order paid')
+
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=self.pk)
+            if order.payment_status == 'completed' or order.complete:
+                return False
+
+            items = list(order.items.select_related('product'))
+            for item in items:
+                if not item.product or item.product.digital:
+                    continue
+                updated = Product.objects.filter(
+                    pk=item.product_id,
+                    stock__gte=item.quantity,
+                ).update(stock=models.F('stock') - item.quantity)
+                if not updated:
+                    raise ValidationError(
+                        f'Insufficient stock for {item.product.name}.'
+                    )
+
+            order.transaction_id = str(transaction_id)
+            order.payment_method = payment_method
+            order.payment_status = 'completed'
+            order.complete = True
+            order.status = 'processing'
+            order.save(update_fields=[
+                'transaction_id', 'payment_method', 'payment_status',
+                'complete', 'status', 'date_updated'
+            ])
+            self.refresh_from_db()
+            return True
 
 
 class OrderItem(models.Model):
@@ -240,7 +266,7 @@ class OrderItem(models.Model):
 
     def save(self, *args, **kwargs):
         # Save the price at time of purchase
-        if not self.price_at_purchase and self.product:
+        if self.price_at_purchase is None and self.product:
             self.price_at_purchase = self.product.price
         super().save(*args, **kwargs)
 
