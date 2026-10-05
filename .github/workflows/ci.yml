@@ -9,23 +9,84 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Django ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
     env:
-      DJANGO_SECRET_KEY: ci-only-secret
-      DJANGO_DEBUG: 'True'
+      DJANGO_SECRET_KEY: ci-only-secret-not-for-production
+      DJANGO_DEBUG: 'False'
+      DEBUG: 'False'
       ALLOWED_HOSTS: localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: https://localhost
+      DATABASE_URL: sqlite:///ci.sqlite3
+      SECURE_SSL_REDIRECT: 'False'
+      SENTRY_DSN: ''
+      CELERY_TASK_ALWAYS_EAGER: 'True'
+      PAYPAL_MODE: sandbox
+      MOMO_WEBHOOK_SECRET: ci-webhook-secret
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Verify dependency consistency
+        run: pip check
+
+      - name: Compile Python sources
+        run: python -m compileall -q ecommerce store
+
       - name: Django system checks
         run: python manage.py check
+
+      - name: Django deployment checks
+        run: python manage.py check --deploy
+
       - name: Check migration drift
         run: python manage.py makemigrations --check --dry-run
-      - name: Run tests
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Collect static assets
+        run: python manage.py collectstatic --noinput
+
+      - name: Run test suite
         run: python manage.py test store --verbosity 2
+
+  security:
+    name: Dependency security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Audit Python dependencies
+        run: pip-audit -r requirements.txt
