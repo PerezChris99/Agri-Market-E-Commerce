@@ -178,3 +178,25 @@ class MarketplaceSettlementTests(TestCase):
         self.assertEqual(settlement.commission_amount, Decimal('2000.00'))
         self.assertEqual(settlement.seller_amount, Decimal('18000.00'))
         self.assertEqual(item.seller_order_id, settlement.id)
+
+
+class OrderLifecycleTests(TestCase):
+    def test_cod_commits_inventory_without_marking_payment_completed(self):
+        buyer = User.objects.create_user(username='cod-user', password='strong-password-123')
+        product = Product.objects.create(name='Cassava', price=Decimal('7000.00'), stock=4)
+        order = Order.objects.create(customer=buyer.customer)
+        OrderItem.objects.create(order=order, product=product, quantity=2)
+        self.assertTrue(order.place_cash_on_delivery())
+        order.refresh_from_db()
+        product.refresh_from_db()
+        self.assertTrue(order.complete)
+        self.assertEqual(order.payment_status, 'pending')
+        self.assertEqual(order.payment_method, 'cod')
+        self.assertTrue(order.inventory_committed)
+        self.assertEqual(product.stock, 2)
+        self.assertTrue(order.cancel())
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 4)
+        self.assertEqual(order.refresh_from_db(), None)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
