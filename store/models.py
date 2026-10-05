@@ -21,6 +21,7 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = 'Categories'
         ordering = ['name']
+        indexes = [models.Index(fields=['is_active', 'name'], name='category_active_name_idx')]
 
     def __str__(self):
         return self.name
@@ -115,6 +116,13 @@ class Product(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_active', '-created_at'], name='product_active_date_idx'),
+            models.Index(fields=['is_featured', 'is_active', '-created_at'], name='product_featured_idx'),
+            models.Index(fields=['category', 'is_active', '-created_at'], name='product_category_idx'),
+            models.Index(fields=['price'], name='product_price_idx'),
+            models.Index(fields=['name'], name='product_name_idx'),
+        ]
 
     def __str__(self):
         return self.name
@@ -188,6 +196,18 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-date_ordered']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer'],
+                condition=models.Q(complete=False, customer__isnull=False),
+                name='unique_open_customer_order',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['customer', 'complete', '-date_ordered'], name='order_customer_open_idx'),
+            models.Index(fields=['status', '-date_ordered'], name='order_status_date_idx'),
+            models.Index(fields=['payment_status', '-date_ordered'], name='order_payment_date_idx'),
+        ]
 
     def __str__(self):
         return f"Order #{self.order_id or self.id}"
@@ -249,43 +269,56 @@ class Order(models.Model):
             order.status = 'processing'
             order.save(update_fields=[
                 'transaction_id', 'payment_method', 'payment_status',
-                'complete', 'status', 'date_updated'
+                'complete', 'inventory_committed', 'status', 'date_updated'
             ])
 
-            from collections import defaultdict
-            seller_items = defaultdict(list)
-            for item in items:
-                if item.product and item.product.seller_id:
-                    seller_items[item.product.seller_id].append(item)
-
-            for seller_id, seller_order_items in seller_items.items():
-                seller_profile = getattr(Customer.objects.get(pk=seller_id), 'seller_profile', None)
-                if not seller_profile:
-                    continue
-                subtotal = sum((item.get_total for item in seller_order_items), Decimal('0'))
-                commission = subtotal * (seller_profile.commission_rate / Decimal('100'))
-                seller_order, _ = SellerOrder.objects.get_or_create(
-                    order=order,
-                    seller=seller_profile,
-                    defaults={
-                        'subtotal': subtotal,
-                        'commission_amount': commission,
-                        'seller_amount': subtotal - commission,
-                    },
-                )
-                if seller_order.subtotal != subtotal:
-                    seller_order.subtotal = subtotal
-                    seller_order.commission_amount = commission
-                    seller_order.seller_amount = subtotal - commission
-                    seller_order.save(update_fields=[
-                        'subtotal', 'commission_amount', 'seller_amount', 'updated_at'
-                    ])
-                OrderItem.objects.filter(
-                    pk__in=[item.pk for item in seller_order_items]
-                ).update(seller_order=seller_order)
+            self._create_seller_settlements(order, items)
 
             self.refresh_from_db()
             return True
+
+
+    @staticmethod
+    def _create_seller_settlements(order, items):
+        """Materialize seller-level settlement records without per-seller customer queries."""
+        from collections import defaultdict
+
+        seller_items = defaultdict(list)
+        seller_ids = set()
+        for item in items:
+            if item.product and item.product.seller_id:
+                seller_items[item.product.seller_id].append(item)
+                seller_ids.add(item.product.seller_id)
+
+        profiles = {
+            profile.customer_id: profile
+            for profile in SellerProfile.objects.filter(customer_id__in=seller_ids)
+        }
+        for seller_id, seller_order_items in seller_items.items():
+            seller_profile = profiles.get(seller_id)
+            if not seller_profile:
+                continue
+            subtotal = sum((item.get_total for item in seller_order_items), Decimal('0'))
+            commission = subtotal * (seller_profile.commission_rate / Decimal('100'))
+            seller_order, _ = SellerOrder.objects.get_or_create(
+                order=order,
+                seller=seller_profile,
+                defaults={
+                    'subtotal': subtotal,
+                    'commission_amount': commission,
+                    'seller_amount': subtotal - commission,
+                },
+            )
+            if seller_order.subtotal != subtotal:
+                seller_order.subtotal = subtotal
+                seller_order.commission_amount = commission
+                seller_order.seller_amount = subtotal - commission
+                seller_order.save(update_fields=[
+                    'subtotal', 'commission_amount', 'seller_amount', 'updated_at'
+                ])
+            OrderItem.objects.filter(
+                pk__in=[item.pk for item in seller_order_items]
+            ).update(seller_order=seller_order)
 
 
     def place_cash_on_delivery(self):
@@ -313,6 +346,7 @@ class Order(models.Model):
                 'payment_method', 'payment_status', 'complete',
                 'inventory_committed', 'status', 'transaction_id', 'date_updated'
             ])
+            self._create_seller_settlements(order, items)
             self.refresh_from_db()
             return True
 
@@ -343,9 +377,14 @@ class OrderItem(models.Model):
     """Individual items within an order"""
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, blank=True, null=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    seller_order = models.ForeignKey('SellerOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='items')
     quantity = models.PositiveIntegerField(default=1)
     price_at_purchase = models.DecimalField(max_digits=12, decimal_places=2, null=True)
     date_added = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['order', 'product'], name='unique_order_product')]
+        indexes = [models.Index(fields=['product', '-date_added'], name='orderitem_product_date_idx')]
 
     def __str__(self):
         return f"{self.quantity}x {self.product.name if self.product else 'Unknown'}"
@@ -421,7 +460,8 @@ class Wishlist(models.Model):
     date_added = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ['customer', 'product']
+        constraints = [models.UniqueConstraint(fields=['customer', 'product'], name='unique_wishlist_customer_product')]
+        indexes = [models.Index(fields=['customer', '-date_added'], name='wishlist_customer_date_idx')]
 
     def __str__(self):
         return f"{self.customer.name}'s wishlist - {self.product.name}"
@@ -452,8 +492,12 @@ class Review(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['product', 'customer']
+        constraints = [models.UniqueConstraint(fields=['product', 'customer'], name='unique_review_product_customer')]
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['product', 'is_approved', '-created_at'], name='review_product_idx'),
+            models.Index(fields=['customer', '-created_at'], name='review_customer_idx'),
+        ]
 
     def __str__(self):
         return f"{self.customer.name} - {self.product.name} ({self.rating}/5)"
@@ -489,6 +533,8 @@ class DeliveryZone(models.Model):
     
     class Meta:
         ordering = ['region', 'name']
+        constraints = [models.UniqueConstraint(fields=['name', 'region'], name='unique_delivery_zone')]
+        indexes = [models.Index(fields=['is_active', 'region', 'name'], name='zone_active_region_idx')]
         
     def __str__(self):
         return f"{self.name} ({self.get_region_display()})"
@@ -539,6 +585,11 @@ class MobileMoneyPayment(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'status'], name='momo_order_status_idx'),
+            models.Index(fields=['external_reference'], name='momo_external_ref_idx'),
+            models.Index(fields=['provider_reference'], name='momo_provider_ref_idx'),
+        ]
         
     def __str__(self):
         return f"{self.get_provider_display()} - {self.phone_number} - UGX {self.amount}"
@@ -621,6 +672,10 @@ class SMSNotification(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='sms_status_date_idx'),
+            models.Index(fields=['customer', '-created_at'], name='sms_customer_date_idx'),
+        ]
         
     def __str__(self):
         return f"SMS to {self.recipient} - {self.get_notification_type_display()}"
@@ -655,6 +710,7 @@ class SellerProfile(models.Model):
     # Payout information
     preferred_payout_method = models.CharField(max_length=20, choices=MobileMoneyPayment.PROVIDER_CHOICES, default='mtn')
     payout_phone = models.CharField(max_length=15, blank=True)
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('10.00'))
     
     # Statistics
     total_sales = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0'))
@@ -698,6 +754,7 @@ class SellerOrder(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['order', 'seller'], name='unique_order_seller')]
         ordering = ['-created_at']
+        indexes = [models.Index(fields=['seller', 'payout_status', '-created_at'], name='sellerorder_payout_idx'), models.Index(fields=['status', '-created_at'], name='sellerorder_status_idx')]
 
     def __str__(self):
         return f"{self.order.order_id} - {self.seller.business_name}"

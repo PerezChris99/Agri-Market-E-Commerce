@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt
@@ -13,6 +14,8 @@ from django.db.models import Q, Avg, Sum, Count, F
 from django.db.models.functions import TruncDate, Coalesce
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
+from django.core.cache import cache
 
 import json
 import datetime
@@ -26,7 +29,7 @@ from .models import (
     DeliveryZone, SellerProfile, PromoCode
 )
 from .utils import cookieCart, cartData, guestOrder, merge_cart_on_login
-from .forms import CreateUserForm, CustomerProfileForm, ReviewForm
+from .forms import CreateUserForm, CustomerProfileForm, ReviewForm, CheckoutForm
 
 # Try to import new models (may not exist yet if migrations not run)
 try:
@@ -37,74 +40,69 @@ except ImportError:
 
 
 def homepage(request):
-    """Beautiful homepage with featured products, categories, and testimonials"""
+    """Render the storefront using annotated querysets instead of per-product review queries."""
     data = cartData(request)
-    cartItems = data['cartItems']
-    
-    # Get all active categories with product count (limited to 6 for homepage)
-    categories = Category.objects.filter(is_active=True).annotate(
-        product_count=Count('products', filter=Q(products__is_active=True))
-    )[:6]
-    
-    # Get featured products
-    featured_products = Product.objects.filter(
-        is_active=True, 
-        is_featured=True
-    ).select_related('category')[:8]
-    
-    # If not enough featured, get popular ones
-    if featured_products.count() < 4:
-        featured_products = Product.objects.filter(
-            is_active=True
-        ).annotate(
-            avg_rating=Avg('reviews__rating')
-        ).order_by('-avg_rating', '-created_at')[:8]
-    
-    # Add ratings to products
-    for product in featured_products:
-        reviews = product.reviews.all()
-        product.avg_rating = int(reviews.aggregate(Avg('rating'))['rating__avg'] or 0)
-        product.review_count = reviews.count()
-    
-    # Get latest products (limited to 4 for homepage)
-    latest_products = Product.objects.filter(
-        is_active=True
-    ).order_by('-created_at').select_related('category')[:4]
-    
-    for product in latest_products:
-        reviews = product.reviews.all()
-        product.avg_rating = int(reviews.aggregate(Avg('rating'))['rating__avg'] or 0)
-        product.review_count = reviews.count()
-    
-    # Get testimonials if model exists
+    featured_products = list(
+        Product.objects.filter(is_active=True, is_featured=True)
+        .select_related('category')
+        .annotate(
+            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), 0),
+            review_count=Count('reviews', filter=Q(reviews__is_approved=True)),
+        )[:8]
+    )
+
+    if len(featured_products) < 4:
+        featured_products = list(
+            Product.objects.filter(is_active=True)
+            .select_related('category')
+            .annotate(
+                avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), 0),
+                review_count=Count('reviews', filter=Q(reviews__is_approved=True)),
+            )
+            .order_by('-avg_rating', '-created_at')[:8]
+        )
+
+    latest_products = list(
+        Product.objects.filter(is_active=True)
+        .select_related('category')
+        .annotate(
+            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), 0),
+            review_count=Count('reviews', filter=Q(reviews__is_approved=True)),
+        )
+        .order_by('-created_at')[:4]
+    )
+
+    categories = list(
+        Category.objects.filter(is_active=True)
+        .annotate(product_count=Count('products', filter=Q(products__is_active=True)))
+        .order_by('name')[:6]
+    )
+
+    stats = cache.get('homepage:stats')
+    if stats is None:
+        stats = {
+            'products': Product.objects.filter(is_active=True).count(),
+            'farmers': SellerProfile.objects.count(),
+            'orders': Order.objects.filter(complete=True).count(),
+            'districts': DeliveryZone.objects.filter(is_active=True).values('name').distinct().count(),
+        }
+        cache.set('homepage:stats', stats, 60)
+
     testimonials = []
     if HOMEPAGE_MODELS_AVAILABLE:
-        try:
-            testimonials = Testimonial.objects.filter(is_active=True).order_by('-created_at')[:6]
-        except:
-            pass
-    
-    # Stats for hero section
-    stats = {
-        'products': Product.objects.filter(is_active=True).count(),
-        'farmers': SellerProfile.objects.count() if SellerProfile else 0,
-        'orders': Order.objects.filter(complete=True).count(),
-        'districts': DeliveryZone.objects.filter(is_active=True).values('name').distinct().count() if DeliveryZone else 110,
-    }
-    
-    # Flash deals (products with discounts) - placeholder for now
-    flash_deals = []
-    
-    context = {
+        testimonials = list(
+            Testimonial.objects.filter(is_active=True).order_by('-created_at')[:6]
+        )
+
+    return render(request, 'store/homepage.html', {
         'categories': categories,
         'featured_products': featured_products,
         'latest_products': latest_products,
         'testimonials': testimonials,
-        'flash_deals': flash_deals,
+        'flash_deals': [],
         'stats': stats,
-        'cartItems': cartItems,
-    }
-    return render(request, 'store/homepage.html', context)
+        'cartItems': data['cartItems'],
+    })
 
 
 def store(request):
@@ -127,9 +125,9 @@ def store(request):
     # Search functionality
     if search_query:
         products = products.filter(
-            Q(name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(category__name__icontains=search_query)
+            Q(name__icontains=search_query[:100]) |
+            Q(description__icontains=search_query[:100]) |
+            Q(category__name__icontains=search_query[:100])
         )
     
     # Sorting
@@ -148,10 +146,10 @@ def store(request):
     products = paginator.get_page(page_number)
     
     # Get categories for filter sidebar
-    categories = Category.objects.filter(is_active=True)
+    categories = Category.objects.filter(is_active=True).only('name', 'slug')
     
     # Get featured products
-    featured_products = Product.objects.filter(is_active=True, is_featured=True)[:4]
+    featured_products = Product.objects.filter(is_active=True, is_featured=True).select_related('category')[:4]
     
     context = {
         "products": products,
@@ -175,10 +173,11 @@ def product_detail(request, slug):
     related_products = Product.objects.filter(
         category=product.category,
         is_active=True
-    ).exclude(id=product.id)[:4]
+    ).exclude(id=product.id).select_related('category')[:4]
     
     # Get reviews
-    reviews = product.reviews.all()
+    reviews = product.reviews.filter(is_approved=True).select_related('customer__user').order_by('-created_at')
+    review_page = Paginator(reviews, 10).get_page(request.GET.get('review_page'))
     avg_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
     
     # Check if user can review (must have purchased and not already reviewed)
@@ -206,7 +205,8 @@ def product_detail(request, slug):
     context = {
         'product': product,
         'related_products': related_products,
-        'reviews': reviews,
+        'reviews': review_page,
+        'review_page': review_page,
         'avg_rating': round(avg_rating, 1),
         'review_count': reviews.count(),
         'can_review': can_review,
@@ -219,7 +219,7 @@ def product_detail(request, slug):
 @login_required(login_url="/login/")
 def cart(request):
     """Shopping cart view"""
-    data = cartData(request)
+    data = cartData(request, create=True)
     cartItems = data['cartItems']
     order = data['order']
     items = data['items']
@@ -233,103 +233,102 @@ def cart(request):
 
 
 @require_POST
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)
 def updateItem(request):
-    """Update cart item quantity via AJAX"""
+    """Update an authenticated database cart safely under concurrency."""
     try:
-        data = json.loads(request.body)
-        productId = data.get("productId")
-        action = data.get("action")
-        
-        product = get_object_or_404(Product, id=productId)
-        
-        if request.user.is_authenticated:
-            # Database cart for logged in users
+        data = json.loads(request.body or '{}')
+        product_id = int(data.get('productId'))
+        action = str(data.get('action', '')).lower()
+        if action not in {'add', 'remove'}:
+            return JsonResponse({'success': False, 'message': 'Invalid cart action.'}, status=400)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({'success': True, 'message': 'Cookie cart updated', 'useCookies': True})
+
+        with transaction.atomic():
             customer = request.user.customer
-            order, created = Order.objects.get_or_create(customer=customer, complete=False)
-            orderItem, created = OrderItem.objects.get_or_create(order=order, product=product)
-            
-            if action == "add":
-                # Check stock
-                if product.stock <= 0 and not product.digital:
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Product is out of stock'
-                    })
-                orderItem.quantity += 1
-            elif action == "remove":
-                orderItem.quantity -= 1
-            
-            orderItem.save()
-            
-            if orderItem.quantity <= 0:
-                orderItem.delete()
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Cart updated',
-                'cartItems': order.get_cart_items,
-                'cartTotal': float(order.get_cart_total)
-            })
-        else:
-            # Cookie cart for anonymous users - handled by JavaScript
-            return JsonResponse({
-                'success': True,
-                'message': 'Cookie cart updated',
-                'useCookies': True
-            })
-    
-    except Exception as e:
+            order, _ = Order.objects.get_or_create(customer=customer, complete=False)
+            product = get_object_or_404(
+                Product.objects.select_for_update(),
+                id=product_id,
+                is_active=True,
+            )
+            item = OrderItem.objects.filter(order=order, product=product).first()
+
+            if action == 'add':
+                current = item.quantity if item else 0
+                if not product.digital and current >= product.stock:
+                    return JsonResponse({'success': False, 'message': 'No more stock is available.'}, status=409)
+                if item:
+                    item.quantity = current + 1
+                    item.save(update_fields=['quantity'])
+                else:
+                    item = OrderItem.objects.create(
+                        order=order, product=product, quantity=1, price_at_purchase=product.price
+                    )
+            elif item:
+                item.quantity -= 1
+                if item.quantity <= 0:
+                    item.delete()
+                else:
+                    item.save(update_fields=['quantity'])
+
         return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=400)
+            'success': True,
+            'message': 'Cart updated',
+            'cartItems': order.get_cart_items,
+            'cartTotal': float(order.get_cart_total),
+        })
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'message': 'Invalid cart request.'}, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Unexpected cart update error')
+        return JsonResponse({'success': False, 'message': 'Unable to update cart.'}, status=500)
 
 
 @require_POST
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)
 def add_to_cart(request, item_id):
-    """Add single item to cart via AJAX"""
+    """Add a product to the authenticated cart or let anonymous JS manage its cookie cart."""
     try:
-        product = get_object_or_404(Product, id=item_id)
-        
-        # Check stock for physical products
-        if product.stock <= 0 and not product.digital:
-            return JsonResponse({
-                'success': False,
-                'message': 'Product is out of stock'
-            })
-        
-        if request.user.is_authenticated:
+        if not request.user.is_authenticated:
+            get_object_or_404(Product, id=item_id, is_active=True)
+            return JsonResponse({'success': True, 'message': 'Product added to cart', 'useCookies': True})
+
+        with transaction.atomic():
             customer = request.user.customer
-            order, created = Order.objects.get_or_create(customer=customer, complete=False)
-            orderItem, created = OrderItem.objects.get_or_create(order=order, product=product)
-            
-            if not created:
-                orderItem.quantity += 1
-                orderItem.save()
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'{product.name} added to cart',
-                'cartItems': order.get_cart_items
-            })
-        else:
-            # For anonymous users, JavaScript handles cookie cart
-            return JsonResponse({
-                'success': True,
-                'message': f'{product.name} added to cart',
-                'useCookies': True
-            })
-    
-    except Exception as e:
+            order, _ = Order.objects.get_or_create(customer=customer, complete=False)
+            product = get_object_or_404(
+                Product.objects.select_for_update(),
+                id=item_id,
+                is_active=True,
+            )
+            item = OrderItem.objects.filter(order=order, product=product).first()
+            current = item.quantity if item else 0
+            if not product.digital and current >= product.stock:
+                return JsonResponse({'success': False, 'message': 'No more stock is available.'}, status=409)
+            if item:
+                item.quantity = current + 1
+                item.save(update_fields=['quantity'])
+            else:
+                OrderItem.objects.create(
+                    order=order, product=product, quantity=1, price_at_purchase=product.price
+                )
+
         return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=400)
+            'success': True,
+            'message': f'{product.name} added to cart',
+            'cartItems': order.get_cart_items,
+        })
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Unexpected add-to-cart error')
+        return JsonResponse({'success': False, 'message': 'Unable to add product to cart.'}, status=500)
 
 
 def checkout(request):
     """Checkout page view"""
-    data = cartData(request)
+    data = cartData(request, create=True)
     cartItems = data['cartItems']
     order = data['order']
     items = data['items']
@@ -348,12 +347,15 @@ def checkout(request):
 
 
 @require_POST
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def processOrder(request):
-    """Create an order only after server-side payment validation."""
+    """Complete checkout only after server-side validation and one atomic commit."""
     try:
         from .services.payments import get_verified_mobile_payment, verify_paypal
 
         data = json.loads(request.body or '{}')
+        form_data = data.get('form') if isinstance(data.get('form'), dict) else {}
+        shipping_data = data.get('shipping') if isinstance(data.get('shipping'), dict) else {}
         payment_method = str(data.get('payment_method', '')).lower()
         transaction_id = str(data.get('transaction_id', '')).strip()
 
@@ -363,22 +365,39 @@ def processOrder(request):
         if request.user.is_authenticated:
             customer = request.user.customer
             order, _ = Order.objects.get_or_create(customer=customer, complete=False)
+            default_name = customer.name
+            default_email = customer.email
         else:
             if payment_method != 'cod':
                 return JsonResponse({'success': False, 'message': 'Authenticated checkout is required for electronic payments.'}, status=401)
             customer, order = guestOrder(request, data)
+            default_name = order.guest_name
+            default_email = order.guest_email
 
         server_total = order.get_cart_total
-        client_total = Decimal(str(data.get('form', {}).get('total', '0')))
-        if client_total != server_total:
-            return JsonResponse({
-                'success': False,
-                'message': 'Order total mismatch. Please refresh and try again.',
-            }, status=400)
+        client_total = Decimal(str(form_data.get('total', '0')))
+        if not client_total.is_finite() or client_total != server_total:
+            return JsonResponse({'success': False, 'message': 'Order total mismatch. Please refresh and try again.'}, status=400)
 
-        if payment_method == 'cod':
-            order.place_cash_on_delivery()
-        elif payment_method in {'mtn', 'airtel'}:
+        requires_shipping = order.requires_shipping
+        cleaned_shipping = {}
+        if requires_shipping:
+            shipping_form = CheckoutForm(data={
+                'name': form_data.get('name') or default_name,
+                'email': form_data.get('email') or default_email,
+                'phone': shipping_data.get('phone', ''),
+                'address': shipping_data.get('address', ''),
+                'city': shipping_data.get('city', ''),
+                'region': shipping_data.get('region', ''),
+                'country': shipping_data.get('country', 'Uganda'),
+                'postal_code': shipping_data.get('zipcode', ''),
+                'delivery_notes': shipping_data.get('landmark', ''),
+            })
+            if not shipping_form.is_valid():
+                return JsonResponse({'success': False, 'message': 'Please provide valid shipping information.'}, status=400)
+            cleaned_shipping = shipping_form.cleaned_data
+
+        if payment_method in {'mtn', 'airtel'}:
             payment = get_verified_mobile_payment(
                 order=order,
                 transaction_id=transaction_id,
@@ -387,42 +406,56 @@ def processOrder(request):
             )
             if not payment:
                 return JsonResponse({'success': False, 'message': 'Verified mobile-money payment not found.'}, status=400)
-            order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
-        else:
+        elif payment_method == 'paypal':
             if not verify_paypal(transaction_id=transaction_id, amount=server_total):
                 return JsonResponse({'success': False, 'message': 'PayPal payment could not be verified.'}, status=400)
-            order.mark_as_paid(transaction_id, payment_method='paypal')
+            payment = None
+        else:
+            payment = None
 
-        if order.requires_shipping:
-            shipping_data = data.get('shipping', {})
-            ShippingAddress.objects.update_or_create(
-                order=order,
-                defaults={
-                    'customer': customer if request.user.is_authenticated else None,
-                    'full_name': data.get('form', {}).get('name', ''),
-                    'phone': shipping_data.get('phone', ''),
-                    'address': shipping_data.get('address', ''),
-                    'city': shipping_data.get('city', ''),
-                    'region': shipping_data.get('region', ''),
-                    'country': shipping_data.get('country', 'Uganda'),
-                    'postal_code': shipping_data.get('zipcode', ''),
-                    'landmark': shipping_data.get('landmark', ''),
-                },
-            )
+        with transaction.atomic():
+            locked_order = Order.objects.select_for_update().get(pk=order.pk)
+            if locked_order.complete:
+                return JsonResponse({'success': False, 'message': 'This order has already been completed.'}, status=409)
+
+            if payment_method == 'cod':
+                locked_order.place_cash_on_delivery()
+            elif payment_method in {'mtn', 'airtel'}:
+                locked_order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
+            else:
+                locked_order.mark_as_paid(transaction_id, payment_method='paypal')
+
+            if requires_shipping:
+                ShippingAddress.objects.update_or_create(
+                    order=locked_order,
+                    defaults={
+                        'customer': customer,
+                        'full_name': cleaned_shipping['name'],
+                        'phone': cleaned_shipping['phone'],
+                        'address': cleaned_shipping['address'],
+                        'city': cleaned_shipping['city'],
+                        'district': cleaned_shipping['region'],
+                        'region': cleaned_shipping['region'],
+                        'country': cleaned_shipping['country'],
+                        'postal_code': cleaned_shipping['postal_code'],
+                        'landmark': shipping_data.get('landmark', '')[:200],
+                        'delivery_notes': cleaned_shipping.get('delivery_notes', ''),
+                    },
+                )
 
         return JsonResponse({
             'success': True,
             'message': 'Order placed successfully',
-            'order_id': order.order_id,
+            'order_id': locked_order.order_id,
         })
-
-    except (ValueError, TypeError, json.JSONDecodeError):
+    except (ValueError, TypeError, json.JSONDecodeError, ArithmeticError):
         return JsonResponse({'success': False, 'message': 'Invalid order request.'}, status=400)
     except Exception:
         __import__('logging').getLogger(__name__).exception('Unexpected order processing error')
         return JsonResponse({'success': False, 'message': 'Unable to process order.'}, status=500)
 
 
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
 def registerPage(request):
     """User registration view"""
     if request.user.is_authenticated:
@@ -446,6 +479,7 @@ def registerPage(request):
     return render(request, 'store/register.html', context)
 
 
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def loginPage(request):
     """User login view"""
     if request.user.is_authenticated:
@@ -474,8 +508,8 @@ def loginPage(request):
             messages.success(request, f'Welcome back, {user.username}!')
             
             # Redirect to 'next' parameter if exists
-            next_url = request.GET.get('next')
-            if next_url:
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
                 return redirect(next_url)
             return redirect('store')
         else:
@@ -484,6 +518,7 @@ def loginPage(request):
     return render(request, 'store/login.html')
 
 
+@require_POST
 def logout_user(request):
     """Logout user"""
     logout(request)
@@ -510,7 +545,10 @@ def profile(request):
         form = CustomerProfileForm(instance=customer)
     
     # Get order history
-    orders = Order.objects.filter(customer=customer, complete=True).order_by('-date_ordered')[:10]
+    orders = Paginator(
+        Order.objects.filter(customer=customer, complete=True).order_by('-date_ordered').prefetch_related('items__product').only('id', 'order_id', 'date_ordered', 'status', 'payment_status'),
+        10,
+    ).get_page(request.GET.get('page'))
     
     context = {
         'form': form,
@@ -523,7 +561,11 @@ def profile(request):
 @login_required(login_url="/login/")
 def order_detail(request, order_id):
     """View single order details"""
-    order = get_object_or_404(Order, order_id=order_id, customer=request.user.customer)
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items__product'),
+        order_id=order_id,
+        customer=request.user.customer,
+    )
     
     context = {
         'order': order,
@@ -534,6 +576,7 @@ def order_detail(request, order_id):
 
 @login_required(login_url="/login/")
 @require_POST
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def add_review(request, product_id):
     """Add a product review"""
     product = get_object_or_404(Product, id=product_id)
@@ -566,6 +609,7 @@ def add_review(request, product_id):
 
 @login_required(login_url="/login/")
 @require_POST
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)
 def toggle_wishlist(request):
     """Add/remove product from wishlist"""
     try:
@@ -593,18 +637,19 @@ def toggle_wishlist(request):
             'message': f'{product.name} added to wishlist'
         })
     
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Unexpected wishlist toggle error')
+        return JsonResponse({'success': False, 'message': 'Unable to update wishlist.'}, status=500)
 
 
 @login_required(login_url="/login/")
 def wishlist(request):
     """View user's wishlist"""
     data = cartData(request)
-    wishlist_items = Wishlist.objects.filter(customer=request.user.customer)
+    wishlist_items = Paginator(
+        Wishlist.objects.filter(customer=request.user.customer).select_related('product').order_by('-date_added'),
+        24,
+    ).get_page(request.GET.get('page'))
     
     context = {
         'wishlist_items': wishlist_items,
@@ -645,6 +690,7 @@ def delivery_tracking(request, order_id):
 
 @login_required
 @require_POST
+@ratelimit(key='ip', rate='60/m', method='POST', block=True)
 def update_delivery_location(request, order_id):
     """Accept GPS updates from the assigned rider or staff only."""
     try:
@@ -671,12 +717,14 @@ def update_delivery_location(request, order_id):
         return JsonResponse({'success': False, 'message': 'Not authorized.'}, status=403)
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'success': False, 'message': 'Invalid location payload.'}, status=400)
-    except Exception as exc:
-        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Delivery location update failed')
+        return JsonResponse({'success': False, 'message': 'Unable to update delivery location.'}, status=400)
 
 
 @login_required
 @require_POST
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)
 def update_delivery_status(request, order_id):
     """Accept delivery status transitions from the assigned rider or staff only."""
     try:
@@ -702,8 +750,9 @@ def update_delivery_status(request, order_id):
         return JsonResponse({'success': False, 'message': 'Not authorized.'}, status=403)
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'success': False, 'message': 'Invalid status payload.'}, status=400)
-    except Exception as exc:
-        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Delivery status update failed')
+        return JsonResponse({'success': False, 'message': 'Unable to update delivery status.'}, status=400)
 
 
 # ============================================
@@ -711,6 +760,7 @@ def update_delivery_status(request, order_id):
 # ============================================
 
 @require_POST
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def initiate_momo_payment(request):
     """Create and initiate a server-owned mobile-money payment."""
     try:
@@ -747,15 +797,32 @@ def initiate_momo_payment(request):
         if not valid:
             return JsonResponse({'success': False, 'message': normalized_phone}, status=400)
 
-        reference = f"AGRI-{uuid.uuid4().hex[:16].upper()}"
-        payment = MobileMoneyPayment.objects.create(
-            order=order,
-            phone_number=normalized_phone,
-            amount=amount,
-            provider=provider,
-            external_reference=reference,
-            status='processing',
-        )
+        with transaction.atomic():
+            locked_order = Order.objects.select_for_update().get(pk=order.pk)
+            existing = MobileMoneyPayment.objects.filter(
+                order=locked_order,
+                provider=provider,
+                amount=amount,
+                status__in=['processing', 'pending'],
+                created_at__gte=timezone.now() - datetime.timedelta(minutes=2),
+            ).order_by('-created_at').first()
+            if existing:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'A payment request is already in progress.',
+                    'payment_id': existing.id,
+                    'reference': existing.external_reference,
+                })
+
+            reference = f"AGRI-{uuid.uuid4().hex[:16].upper()}"
+            payment = MobileMoneyPayment.objects.create(
+                order=locked_order,
+                phone_number=normalized_phone,
+                amount=amount,
+                provider=provider,
+                external_reference=reference,
+                status='processing',
+            )
 
         success, provider_reference, message = gateway.initiate_payment(
             provider=provider,
@@ -791,6 +858,7 @@ def initiate_momo_payment(request):
 
 
 @require_GET
+@ratelimit(key='ip', rate='60/m', method='GET', block=True)
 def check_momo_status(request):
     """Poll a payment while preserving order ownership and provider verification."""
     try:
@@ -872,6 +940,7 @@ def _verify_payment_webhook(request):
 
 @csrf_exempt
 @require_POST
+@ratelimit(key='ip', rate='120/m', method='POST', block=True)
 def momo_callback(request):
     """Process an authenticated, idempotent payment provider callback."""
     if not _verify_payment_webhook(request):
@@ -943,52 +1012,35 @@ def momo_callback(request):
 
 
 @require_POST
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
 def newsletter_subscribe(request):
-    """Subscribe to newsletter"""
+    """Validate and store newsletter subscriptions without leaking backend errors."""
     try:
-        data = json.loads(request.body)
-        email = data.get('email', '').strip()
-        
-        if not email:
-            return JsonResponse({
-                'success': False,
-                'message': 'Email is required'
-            })
-        
-        # Try to use NewsletterSubscriber model if available
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        data = json.loads(request.body or '{}')
+        email = str(data.get('email', '')).strip().lower()
         try:
-            from .models import NewsletterSubscriber
-            
-            # Check if already subscribed
-            if NewsletterSubscriber.objects.filter(email=email).exists():
-                return JsonResponse({
-                    'success': False,
-                    'message': 'You are already subscribed!'
-                })
-            
-            # Create subscription
-            NewsletterSubscriber.objects.create(email=email)
-            return JsonResponse({
-                'success': True,
-                'message': 'Successfully subscribed! You\'ll receive our latest updates.'
-            })
-        except:
-            # Model doesn't exist yet, just return success
-            return JsonResponse({
-                'success': True,
-                'message': 'Thank you for subscribing!'
-            })
-    
+            validate_email(email)
+        except DjangoValidationError:
+            return JsonResponse({'success': False, 'message': 'Enter a valid email address.'}, status=400)
+
+        from .models import NewsletterSubscriber
+        subscriber, created = NewsletterSubscriber.objects.get_or_create(
+            email=email,
+            defaults={'is_active': True},
+        )
+        if not created and subscriber.is_active:
+            return JsonResponse({'success': False, 'message': 'You are already subscribed.'}, status=409)
+        if not subscriber.is_active:
+            subscriber.is_active = True
+            subscriber.save(update_fields=['is_active'])
+        return JsonResponse({'success': True, 'message': 'Successfully subscribed.'})
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid request'
-        })
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        })
+        return JsonResponse({'success': False, 'message': 'Invalid request.'}, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Newsletter subscription failed')
+        return JsonResponse({'success': False, 'message': 'Unable to process subscription.'}, status=500)
 
 
 @login_required

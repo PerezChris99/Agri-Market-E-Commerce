@@ -200,3 +200,51 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(order.refresh_from_db(), None)
         order.refresh_from_db()
         self.assertEqual(order.status, 'cancelled')
+
+
+class ProductionHardeningTests(TestCase):
+    def test_health_endpoints_report_service_state(self):
+        live = self.client.get(reverse('health_live'))
+        ready = self.client.get(reverse('health_ready'))
+        self.assertEqual(live.status_code, 200)
+        self.assertEqual(live.json()['status'], 'ok')
+        self.assertEqual(ready.status_code, 200)
+        self.assertEqual(ready.json()['checks']['database'], 'ok')
+        self.assertEqual(ready.json()['checks']['cache'], 'ok')
+
+    def test_authenticated_page_views_do_not_create_empty_cart_orders(self):
+        user = User.objects.create_user(username='no-empty-cart', password='strong-password-123')
+        self.client.login(username='no-empty-cart', password='strong-password-123')
+        self.client.get(reverse('homepage'))
+        self.client.get(reverse('store'))
+        self.assertFalse(Order.objects.filter(customer=user.customer, complete=False).exists())
+
+    def test_login_rejects_external_redirect(self):
+        response = self.client.post(
+            reverse('login'),
+            {'username': 'nobody', 'password': 'wrong', 'next': 'https://evil.example/account'},
+        )
+        self.assertNotEqual(response.status_code, 302)
+
+    def test_logout_requires_post(self):
+        user = User.objects.create_user(username='logout-user', password='strong-password-123')
+        self.client.login(username='logout-user', password='strong-password-123')
+        self.assertEqual(self.client.get(reverse('logout')).status_code, 405)
+        self.assertEqual(self.client.post(reverse('logout')).status_code, 302)
+
+    def test_cod_multi_vendor_order_creates_settlement(self):
+        buyer = User.objects.create_user(username='cod-buyer', password='strong-password-123')
+        seller_user = User.objects.create_user(username='cod-seller', password='strong-password-123')
+        seller = SellerProfile.objects.create(
+            customer=seller_user.customer,
+            business_name='COD Farm',
+            commission_rate=Decimal('10.00'),
+        )
+        product = Product.objects.create(
+            name='Tomatoes', price=Decimal('5000.00'), stock=10, seller=seller.customer,
+        )
+        order = Order.objects.create(customer=buyer.customer)
+        OrderItem.objects.create(order=order, product=product, quantity=2)
+        self.assertTrue(order.place_cash_on_delivery())
+        settlement = SellerOrder.objects.get(order=order, seller=seller)
+        self.assertEqual(settlement.seller_amount, Decimal('9000.00'))

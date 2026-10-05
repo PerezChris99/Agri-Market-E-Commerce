@@ -1,7 +1,10 @@
 from django.urls import path
+from . import health
 from . import views
 
 urlpatterns = [
+    path('health/live/', health.live, name='health_live'),
+    path('health/ready/', health.ready, name='health_ready'),
     # Main pages
     path('', views.homepage, name="homepage"),  # Beautiful homepage
     path('shop/', views.store, name="store"),   # Product listing

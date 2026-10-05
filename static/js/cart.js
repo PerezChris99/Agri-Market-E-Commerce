@@ -105,7 +105,7 @@ function updateCookieCart(productId, action) {
     }
     
     // Save to cookie
-    document.cookie = 'cart=' + JSON.stringify(cart) + ';domain=;path=/';
+    if (window.setCartCookie) window.setCartCookie(cart);
     
     // Update cart counter
     const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
@@ -160,7 +160,6 @@ function toggleWishlist(productId, buttonElement) {
 }
 
 function showToast(message, type = 'success') {
-    // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
@@ -169,32 +168,34 @@ function showToast(message, type = 'success') {
         toastContainer.style.zIndex = '1050';
         document.body.appendChild(toastContainer);
     }
-    
-    const toastId = 'toast-' + Date.now();
-    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
-    
-    const toastHTML = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-    
-    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-    
-    const toastElement = document.getElementById(toastId);
+
+    const toastElement = document.createElement('div');
+    toastElement.className = 'toast align-items-center text-white ' +
+        (type === 'success' ? 'bg-success' : 'bg-danger') + ' border-0';
+    toastElement.setAttribute('role', 'alert');
+    toastElement.setAttribute('aria-live', 'assertive');
+    toastElement.setAttribute('aria-atomic', 'true');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex';
+
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    body.textContent = String(message || '');
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn-close btn-close-white me-2 m-auto';
+    close.setAttribute('data-bs-dismiss', 'toast');
+    close.setAttribute('aria-label', 'Close');
+
+    wrapper.append(body, close);
+    toastElement.appendChild(wrapper);
+    toastContainer.appendChild(toastElement);
+
     const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
     toast.show();
-    
-    // Remove toast element after it's hidden
-    toastElement.addEventListener('hidden.bs.toast', () => {
-        toastElement.remove();
-    });
+    toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
 }
 
 // Add CSS for pulse animation

@@ -40,10 +40,12 @@ INSTALLED_APPS = [
 
     # Our installed apps
     'store.apps.StoreConfig',
+    'csp',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -146,7 +148,11 @@ PAYPAL_MODE = os.environ.get('PAYPAL_MODE', 'sandbox')  # 'sandbox' or 'live'
 
 # Session settings
 SESSION_COOKIE_AGE = 86400 * 14  # 14 days
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # JavaScript reads the CSRF cookie for AJAX POSTs
+SESSION_SAVE_EVERY_REQUEST = False
 
 # Security settings for production
 if not DEBUG:
@@ -159,6 +165,8 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+    SECURE_CROSS_ORIGIN_RESOURCE_POLICY = 'same-origin'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 else:
     SECURE_SSL_REDIRECT = False
@@ -292,12 +300,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'agrimarket.log',
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
@@ -306,16 +308,13 @@ LOGGING = {
     },
     'loggers': {
         'store': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True,
         },
     },
 }
 
-# Create logs directory if it doesn't exist
-LOGS_DIR = BASE_DIR / 'logs'
-LOGS_DIR.mkdir(exist_ok=True)
 
 # ============================================
 # PRODUCTION INFRASTRUCTURE
@@ -374,3 +373,43 @@ if SENTRY_DSN:
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.05')),
         send_default_pii=False,
     )
+
+
+# Upload/request limits: enforce these at both Django and the reverse proxy.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_PERMISSIONS = 0o640
+
+# Prefer Argon2 for new/rehash operations while retaining Django's PBKDF2 fallback.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+]
+
+# Content Security Policy. The application still has legacy inline template code,
+# so inline scripts are temporarily permitted; the CI policy is documented for
+# migration to nonce-based scripts without weakening external-source controls.
+from csp.constants import SELF
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': [SELF],
+        'base-uri': [SELF],
+        'object-src': ["'none'"],
+        'frame-ancestors': ["'none'"],
+        'form-action': [SELF],
+        'script-src': [SELF, "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://www.paypal.com'],
+        'style-src': [SELF, "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
+        'font-src': [SELF, 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'data:'],
+        'img-src': [SELF, 'https:', 'data:', 'blob:'],
+        'connect-src': [SELF, 'https://www.paypal.com', 'https://www.paypalobjects.com', 'https://api-m.paypal.com', 'https://api-m.sandbox.paypal.com'],
+        'frame-src': [SELF, 'https://www.paypal.com', 'https://www.paypalobjects.com'],
+        'frame-ancestors': ["'none'"],
+        'upgrade-insecure-requests': [],
+    },
+}
+
+
+APP_VERSION = os.environ.get('APP_VERSION', 'development')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@agrimarket.ug')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)

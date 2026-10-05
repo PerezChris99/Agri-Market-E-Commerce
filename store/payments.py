@@ -118,7 +118,7 @@ class MTNMobileMoneyProvider(BaseMobileMoneyProvider):
         }
         
         try:
-            response = requests.post(url, headers=headers, timeout=30)
+            response = requests.post(url, headers=headers, timeout=(5, 15))
             if response.status_code == 200:
                 return response.json().get('access_token')
             else:
@@ -167,7 +167,7 @@ class MTNMobileMoneyProvider(BaseMobileMoneyProvider):
         }
         
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response = requests.post(url, headers=headers, json=payload, timeout=(5, 20))
             
             if response.status_code == 202:
                 return True, reference, "Payment request sent. Please approve on your phone."
