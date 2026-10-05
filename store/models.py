@@ -486,10 +486,13 @@ class MobileMoneyPayment(models.Model):
             return True
     
     def mark_failed(self, message="Payment failed"):
-        """Mark payment as failed"""
+        """Mark a non-final payment as failed without downgrading a successful payment."""
+        if self.status == 'successful':
+            return False
         self.status = 'failed'
         self.status_message = message
-        self.save()
+        self.save(update_fields=['status', 'status_message', 'updated_at'])
+        return True
 
 
 class SMSNotification(models.Model):
