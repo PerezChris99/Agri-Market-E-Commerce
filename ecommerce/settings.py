@@ -48,6 +48,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'ecommerce.middleware.RequestIDMiddleware',
     'csp.middleware.CSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -116,6 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 12},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -445,3 +447,5 @@ RATELIMIT_FAIL_OPEN = False
 RATELIMIT_VIEW = 'store.views.ratelimit_error'
 
 WHITENOISE_MAX_AGE = 31536000
+
+RATELIMIT_VIEW = 'store.views.ratelimit_error'
