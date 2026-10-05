@@ -505,8 +505,4 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
             ],
         ),
-        migrations.AddField(
-            model_name='smsnotification', name='order',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sms_notifications', to='store.order'),
-        ),
     ]
