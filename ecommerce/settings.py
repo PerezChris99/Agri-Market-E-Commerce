@@ -92,10 +92,10 @@ if DATABASE_URL:
         import dj_database_url
         DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG)}
         if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
-            DATABASES['default']['OPTIONS'] = {
+            DATABASES['default'].setdefault('OPTIONS', {}).update({
                 'connect_timeout': 5,
                 'options': '-c statement_timeout=15000',
-            }
+            })
     except ImportError as exc:
         raise ImproperlyConfigured('dj-database-url is required when DATABASE_URL is configured') from exc
 else:
