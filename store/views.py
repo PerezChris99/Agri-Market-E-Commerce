@@ -427,6 +427,8 @@ def processOrder(request):
             actor=request.user if request.user.is_authenticated else None,
             ip_address=request.META.get('REMOTE_ADDR'),
         )
+        if locked_order is None:
+            return JsonResponse({'success': False, 'message': 'This order has already been completed.'}, status=409)
 
         return JsonResponse({
             'success': True,
