@@ -46,9 +46,7 @@
                 <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action">
                     <i class="bi bi-heart me-2"></i>Wishlist
                 </a>
-                <a href="{% url 'logout' %}" class="list-group-item list-group-item-action text-danger">
-                    <i class="bi bi-box-arrow-right me-2"></i>Logout
-                </a>
+                <form method="post" action="{% url 'logout' %}" class="m-0">{% csrf_token %}<button type="submit" class="list-group-item list-group-item-action text-danger border-0 bg-transparent w-100 text-start"><i class="bi bi-box-arrow-right me-2"></i>Logout</button></form>
             </div>
         </div>
     </div>
@@ -162,6 +160,15 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if orders.has_other_pages %}
+                    <nav aria-label="Order history pagination" class="mt-3">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if orders.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ orders.previous_page_number }}#order-history">Previous</a></li>{% endif %}
+                            <li class="page-item active"><span class="page-link">Page {{ orders.number }} of {{ orders.paginator.num_pages }}</span></li>
+                            {% if orders.has_next %}<li class="page-item"><a class="page-link" href="?page={{ orders.next_page_number }}#order-history">Next</a></li>{% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
                     {% else %}
                     <div class="text-center py-5">
                         <i class="bi bi-bag-x text-muted fs-1"></i>
