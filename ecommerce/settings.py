@@ -1,6 +1,7 @@
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
@@ -12,7 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'False')).strip().lower() in {'1', 'true', 'yes', 'on'}
+TESTING = any(arg == 'test' or arg.startswith('test') for arg in sys.argv)
+DEBUG = os.environ.get('DJANGO_DEBUG', os.environ.get('DEBUG', 'False')).strip().lower() in {'1', 'true', 'yes', 'on'} or TESTING
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
