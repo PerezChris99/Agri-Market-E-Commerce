@@ -906,6 +906,7 @@ class USSDSession(models.Model):
 
 class DeliveryRider(models.Model):
     """Delivery riders/boda-boda drivers"""
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_rider')
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=15)
     alternate_phone = models.CharField(max_length=15, blank=True)
@@ -1165,6 +1166,27 @@ class ContactMessage(models.Model):
 # ============================================
 # SITE SETTINGS
 # ============================================
+
+class AuditLog(models.Model):
+    """Security and operational audit trail for sensitive business events."""
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_events')
+    action = models.CharField(max_length=100)
+    object_type = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=100, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['object_type', 'object_id']),
+            models.Index(fields=['action', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.action} {self.object_type}:{self.object_id}"
+
 
 class SiteSetting(models.Model):
     """Dynamic site settings"""
