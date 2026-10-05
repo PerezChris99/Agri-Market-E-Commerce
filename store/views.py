@@ -351,8 +351,7 @@ def checkout(request):
 def processOrder(request):
     """Create an order only after server-side payment validation."""
     try:
-        from .models import MobileMoneyPayment
-        from .payments import verify_paypal_transaction
+        from .services.payments import get_verified_mobile_payment, verify_paypal
 
         data = json.loads(request.body or '{}')
         payment_method = str(data.get('payment_method', '')).lower()
@@ -380,19 +379,17 @@ def processOrder(request):
         if payment_method == 'cod':
             order.place_cash_on_delivery()
         elif payment_method in {'mtn', 'airtel'}:
-            payment = MobileMoneyPayment.objects.filter(
+            payment = get_verified_mobile_payment(
                 order=order,
-                status='successful',
-            ).filter(
-                Q(provider_reference=transaction_id)
-                | Q(external_reference=transaction_id)
-                | Q(transaction_id=transaction_id)
-            ).first()
-            if not payment or payment.amount != server_total or payment.provider != payment_method:
+                transaction_id=transaction_id,
+                provider=payment_method,
+                amount=server_total,
+            )
+            if not payment:
                 return JsonResponse({'success': False, 'message': 'Verified mobile-money payment not found.'}, status=400)
             order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
         else:
-            if not transaction_id or not verify_paypal_transaction(transaction_id, server_total):
+            if not verify_paypal(transaction_id=transaction_id, amount=server_total):
                 return JsonResponse({'success': False, 'message': 'PayPal payment could not be verified.'}, status=400)
             order.mark_as_paid(transaction_id, payment_method='paypal')
 
@@ -614,6 +611,99 @@ def wishlist(request):
         'cartItems': data['cartItems'],
     }
     return render(request, 'store/wishlist.html', context)
+
+
+# ============================================
+# Delivery Tracking API
+# ============================================
+
+@login_required
+def delivery_tracking(request, order_id):
+    """Return delivery status/location only to the customer, assigned rider, or staff."""
+    if not HOMEPAGE_MODELS_AVAILABLE:
+        return JsonResponse({'success': False, 'message': 'Delivery tracking unavailable.'}, status=503)
+    delivery = get_object_or_404(
+        Delivery.objects.select_related('order__customer', 'rider'),
+        order__order_id=order_id,
+    )
+    is_customer = delivery.order.customer_id == getattr(request.user.customer, 'id', None)
+    is_rider = delivery.rider_id and delivery.rider.user_id == request.user.id
+    if not (request.user.is_staff or is_customer or is_rider):
+        return JsonResponse({'success': False, 'message': 'Not authorized.'}, status=403)
+    return JsonResponse({
+        'success': True,
+        'order_id': order_id,
+        'status': delivery.status,
+        'current_location': {
+            'lat': str(delivery.current_lat) if delivery.current_lat is not None else None,
+            'lng': str(delivery.current_lng) if delivery.current_lng is not None else None,
+        },
+        'timeline': delivery.get_tracking_timeline(),
+        'status_history': delivery.status_history[-20:],
+    })
+
+
+@login_required
+@require_POST
+def update_delivery_location(request, order_id):
+    """Accept GPS updates from the assigned rider or staff only."""
+    try:
+        data = json.loads(request.body or '{}')
+        delivery = get_object_or_404(Delivery.objects.select_related('rider', 'order'), order__order_id=order_id)
+        from .services.delivery import update_location
+        update_location(
+            delivery=delivery,
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude'),
+            accuracy=data.get('accuracy'),
+            actor=request.user,
+        )
+        from .services.audit import record_event
+        record_event(
+            action='delivery.location_updated',
+            object_type='Delivery',
+            object_id=delivery.id,
+            actor=request.user,
+            metadata={'order_id': order_id},
+        )
+        return JsonResponse({'success': True})
+    except PermissionError:
+        return JsonResponse({'success': False, 'message': 'Not authorized.'}, status=403)
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'message': 'Invalid location payload.'}, status=400)
+    except Exception as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+
+
+@login_required
+@require_POST
+def update_delivery_status(request, order_id):
+    """Accept delivery status transitions from the assigned rider or staff only."""
+    try:
+        data = json.loads(request.body or '{}')
+        delivery = get_object_or_404(Delivery.objects.select_related('rider', 'order'), order__order_id=order_id)
+        from .services.delivery import update_status
+        update_status(
+            delivery=delivery,
+            new_status=data.get('status', ''),
+            notes=data.get('notes', ''),
+            actor=request.user,
+        )
+        from .services.audit import record_event
+        record_event(
+            action='delivery.status_updated',
+            object_type='Delivery',
+            object_id=delivery.id,
+            actor=request.user,
+            metadata={'order_id': order_id, 'status': delivery.status},
+        )
+        return JsonResponse({'success': True, 'status': delivery.status})
+    except PermissionError:
+        return JsonResponse({'success': False, 'message': 'Not authorized.'}, status=403)
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'message': 'Invalid status payload.'}, status=400)
+    except Exception as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
 
 # ============================================
