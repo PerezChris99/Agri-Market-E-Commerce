@@ -349,56 +349,81 @@ def checkout(request):
 
 @require_POST
 def processOrder(request):
-    """Process order after payment"""
+    """Create an order only after server-side payment validation."""
     try:
-        data = json.loads(request.body)
-        transaction_id = data.get('transaction_id', datetime.datetime.now().timestamp())
-        
+        from .models import MobileMoneyPayment
+        from .payments import verify_paypal_transaction
+
+        data = json.loads(request.body or '{}')
+        payment_method = str(data.get('payment_method', '')).lower()
+        transaction_id = str(data.get('transaction_id', '')).strip()
+
+        if payment_method not in {'mtn', 'airtel', 'paypal', 'cod'}:
+            return JsonResponse({'success': False, 'message': 'Unsupported payment method.'}, status=400)
+
         if request.user.is_authenticated:
             customer = request.user.customer
-            order, created = Order.objects.get_or_create(customer=customer, complete=False)
+            order, _ = Order.objects.get_or_create(customer=customer, complete=False)
         else:
-            # Guest checkout
+            if payment_method != 'cod':
+                return JsonResponse({'success': False, 'message': 'Authenticated checkout is required for electronic payments.'}, status=401)
             customer, order = guestOrder(request, data)
-        
-        total = Decimal(str(data['form']['total']))
-        
-        # Verify the total matches
-        if abs(total - order.get_cart_total) > Decimal('0.01'):
+
+        server_total = order.get_cart_total
+        client_total = Decimal(str(data.get('form', {}).get('total', '0')))
+        if client_total != server_total:
             return JsonResponse({
                 'success': False,
-                'message': 'Order total mismatch. Please refresh and try again.'
+                'message': 'Order total mismatch. Please refresh and try again.',
             }, status=400)
-        
-        # Mark order as paid
-        order.mark_as_paid(str(transaction_id), payment_method='paypal')
-        
-        # Create shipping address if required
+
+        if payment_method == 'cod':
+            order.place_cash_on_delivery()
+        elif payment_method in {'mtn', 'airtel'}:
+            payment = MobileMoneyPayment.objects.filter(
+                order=order,
+                status='successful',
+            ).filter(
+                Q(provider_reference=transaction_id)
+                | Q(external_reference=transaction_id)
+                | Q(transaction_id=transaction_id)
+            ).first()
+            if not payment or payment.amount != server_total or payment.provider != payment_method:
+                return JsonResponse({'success': False, 'message': 'Verified mobile-money payment not found.'}, status=400)
+            order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
+        else:
+            if not transaction_id or not verify_paypal_transaction(transaction_id, server_total):
+                return JsonResponse({'success': False, 'message': 'PayPal payment could not be verified.'}, status=400)
+            order.mark_as_paid(transaction_id, payment_method='paypal')
+
         if order.requires_shipping:
             shipping_data = data.get('shipping', {})
-            ShippingAddress.objects.create(
-                customer=customer if request.user.is_authenticated else None,
+            ShippingAddress.objects.update_or_create(
                 order=order,
-                full_name=data['form'].get('name', ''),
-                phone=shipping_data.get('phone', ''),
-                address=shipping_data.get('address', ''),
-                city=shipping_data.get('city', ''),
-                region=shipping_data.get('region', ''),
-                country=shipping_data.get('country', 'Uganda'),
-                postal_code=shipping_data.get('zipcode', ''),
+                defaults={
+                    'customer': customer if request.user.is_authenticated else None,
+                    'full_name': data.get('form', {}).get('name', ''),
+                    'phone': shipping_data.get('phone', ''),
+                    'address': shipping_data.get('address', ''),
+                    'city': shipping_data.get('city', ''),
+                    'region': shipping_data.get('region', ''),
+                    'country': shipping_data.get('country', 'Uganda'),
+                    'postal_code': shipping_data.get('zipcode', ''),
+                    'landmark': shipping_data.get('landmark', ''),
+                },
             )
-        
+
         return JsonResponse({
             'success': True,
             'message': 'Order placed successfully',
-            'order_id': order.order_id
+            'order_id': order.order_id,
         })
-    
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=400)
+
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'message': 'Invalid order request.'}, status=400)
+    except Exception:
+        __import__('logging').getLogger(__name__).exception('Unexpected order processing error')
+        return JsonResponse({'success': False, 'message': 'Unable to process order.'}, status=500)
 
 
 def registerPage(request):

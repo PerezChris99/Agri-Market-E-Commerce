@@ -183,6 +183,7 @@ class Order(models.Model):
     transaction_id = models.CharField(max_length=200, null=True, blank=True)
     
     complete = models.BooleanField(default=False)
+    inventory_committed = models.BooleanField(default=False)
     notes = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -244,6 +245,7 @@ class Order(models.Model):
             order.payment_method = payment_method
             order.payment_status = 'completed'
             order.complete = True
+            order.inventory_committed = True
             order.status = 'processing'
             order.save(update_fields=[
                 'transaction_id', 'payment_method', 'payment_status',
@@ -282,6 +284,57 @@ class Order(models.Model):
                     pk__in=[item.pk for item in seller_order_items]
                 ).update(seller_order=seller_order)
 
+            self.refresh_from_db()
+            return True
+
+
+    def place_cash_on_delivery(self):
+        """Place a COD order while committing inventory but leaving payment pending."""
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=self.pk)
+            if order.complete:
+                return False
+            items = list(order.items.select_related('product'))
+            for item in items:
+                if not item.product or item.product.digital:
+                    continue
+                updated = Product.objects.filter(
+                    pk=item.product_id, stock__gte=item.quantity
+                ).update(stock=models.F('stock') - item.quantity)
+                if not updated:
+                    raise ValidationError(f'Insufficient stock for {item.product.name}.')
+            order.payment_method = 'cod'
+            order.payment_status = 'pending'
+            order.complete = True
+            order.inventory_committed = True
+            order.status = 'processing'
+            order.transaction_id = f'COD-{order.order_id}'
+            order.save(update_fields=[
+                'payment_method', 'payment_status', 'complete',
+                'inventory_committed', 'status', 'transaction_id', 'date_updated'
+            ])
+            self.refresh_from_db()
+            return True
+
+    def cancel(self):
+        """Cancel an order and release committed inventory exactly once."""
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=self.pk)
+            if order.status == 'cancelled':
+                return False
+            if order.status == 'delivered':
+                raise ValidationError('Delivered orders cannot be cancelled.')
+            if order.inventory_committed:
+                for item in order.items.select_related('product'):
+                    if item.product and not item.product.digital:
+                        Product.objects.filter(pk=item.product_id).update(
+                            stock=models.F('stock') + item.quantity
+                        )
+                order.inventory_committed = False
+            order.status = 'cancelled'
+            if order.payment_status == 'pending':
+                order.payment_status = 'failed'
+            order.save(update_fields=['status', 'payment_status', 'inventory_committed', 'date_updated'])
             self.refresh_from_db()
             return True
 

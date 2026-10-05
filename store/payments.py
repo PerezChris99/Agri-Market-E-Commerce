@@ -603,6 +603,52 @@ class PaymentGateway:
         return f"UGX {int(amount):,}"
 
 
+def verify_paypal_transaction(order_id, expected_ugx_amount):
+    """Verify a captured PayPal order server-side before completing Agri-Market checkout."""
+    client_id = getattr(settings, 'PAYPAL_CLIENT_ID', '')
+    client_secret = getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
+    if not client_id or not client_secret or not order_id:
+        return False
+
+    mode = getattr(settings, 'PAYPAL_MODE', 'sandbox').lower()
+    base_url = 'https://api-m.paypal.com' if mode == 'live' else 'https://api-m.sandbox.paypal.com'
+    try:
+        token_response = requests.post(
+            f'{base_url}/v1/oauth2/token',
+            auth=(client_id, client_secret),
+            data={'grant_type': 'client_credentials'},
+            headers={'Accept': 'application/json'},
+            timeout=20,
+        )
+        token_response.raise_for_status()
+        access_token = token_response.json().get('access_token')
+        if not access_token:
+            return False
+
+        response = requests.get(
+            f'{base_url}/v2/checkout/orders/{order_id}',
+            headers={'Authorization': f'Bearer {access_token}', 'Accept': 'application/json'},
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get('status') != 'COMPLETED':
+            return False
+
+        expected_usd = (Decimal(str(expected_ugx_amount)) / Decimal(str(getattr(settings, 'USD_TO_UGX_RATE', 3700)))).quantize(Decimal('0.01'))
+        purchase_units = payload.get('purchase_units') or []
+        if not purchase_units:
+            return False
+        captured = purchase_units[0].get('payments', {}).get('captures', [])
+        if not captured or captured[0].get('status') != 'COMPLETED':
+            return False
+        actual_usd = Decimal(str(captured[0].get('amount', {}).get('value', '0')))
+        return actual_usd == expected_usd
+    except (requests.RequestException, ValueError, ArithmeticError):
+        logger.exception('PayPal server-side verification failed for order %s', order_id)
+        return False
+
+
 # Utility functions for quick access
 def initiate_mobile_payment(phone, amount, reference, provider=None, email=""):
     """Quick function to initiate mobile money payment"""
