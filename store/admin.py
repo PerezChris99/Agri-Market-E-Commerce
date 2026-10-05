@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 
-from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review
+from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption
 
 # Try to import new models
 try:
@@ -277,6 +277,12 @@ if UGANDA_MODELS:
         search_fields = ['business_name', 'customer__user__username']
         list_editable = ['verification_status']
 
+        def get_exclude(self, request, obj=None):
+            # National ID and payout phone are sensitive seller data. Only superusers may access them.
+            if request.user.is_superuser:
+                return None
+            return ['national_id', 'payout_phone']
+
     @admin.register(BulkOrderRequest)
     class BulkOrderRequestAdmin(admin.ModelAdmin):
         list_display = ['product', 'quantity', 'company_name', 'status', 'created_at']
@@ -289,6 +295,13 @@ if UGANDA_MODELS:
         list_filter = ['discount_type', 'is_active']
         search_fields = ['code']
         list_editable = ['is_active']
+
+    @admin.register(PromoRedemption)
+    class PromoRedemptionAdmin(admin.ModelAdmin):
+        list_display = ['promo', 'customer', 'order', 'discount_amount', 'redeemed_at']
+        list_filter = ['redeemed_at']
+        search_fields = ['promo__code', 'customer__user__username', 'order__order_id']
+        readonly_fields = ['promo', 'customer', 'order', 'discount_amount', 'redeemed_at']
 
 
 # Register extended models if available
