@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 
-from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption, SellerOrder, SellerPayout
+from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption, SellerOrder, SellerPayout, AuditLog
 
 # Try to import new models
 try:
@@ -282,6 +282,13 @@ if UGANDA_MODELS:
             if request.user.is_superuser:
                 return None
             return ['national_id', 'payout_phone']
+
+    @admin.register(AuditLog)
+    class AuditLogAdmin(admin.ModelAdmin):
+        list_display = ['created_at', 'action', 'object_type', 'object_id', 'actor', 'ip_address']
+        list_filter = ['action', 'object_type', 'created_at']
+        search_fields = ['action', 'object_type', 'object_id', 'actor__username']
+        readonly_fields = ['created_at', 'actor', 'action', 'object_type', 'object_id', 'metadata', 'ip_address']
 
     @admin.register(SellerOrder)
     class SellerOrderAdmin(admin.ModelAdmin):
