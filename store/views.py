@@ -116,7 +116,7 @@ def store(request):
     sort_by = request.GET.get('sort', 'newest')
     
     # Base queryset - only active products
-    products = Product.objects.filter(is_active=True)
+    products = Product.objects.filter(is_active=True).select_related('category', 'seller')
     
     # Filter by category
     if category_slug:
@@ -146,10 +146,10 @@ def store(request):
     products = paginator.get_page(page_number)
     
     # Get categories for filter sidebar
-    categories = Category.objects.filter(is_active=True).only('name', 'slug')
+    categories = Category.objects.filter(is_active=True).only('id', 'name', 'slug').annotate(product_count=Count('products', filter=Q(products__is_active=True)))
     
     # Get featured products
-    featured_products = Product.objects.filter(is_active=True, is_featured=True).select_related('category')[:4]
+    featured_products = Product.objects.filter(is_active=True, is_featured=True).select_related('category', 'seller')[:4]
     
     context = {
         "products": products,
@@ -165,7 +165,7 @@ def store(request):
 
 def product_detail(request, slug):
     """Single product detail view"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product.objects.select_related('category', 'seller'), slug=slug, is_active=True)
     data = cartData(request)
     cartItems = data['cartItems']
     
@@ -208,7 +208,7 @@ def product_detail(request, slug):
         'reviews': review_page,
         'review_page': review_page,
         'avg_rating': round(avg_rating, 1),
-        'review_count': reviews.count(),
+        'review_count': review_page.paginator.count,
         'can_review': can_review,
         'in_wishlist': in_wishlist,
         'cartItems': cartItems,
