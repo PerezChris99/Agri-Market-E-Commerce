@@ -15,6 +15,7 @@ import json
 import datetime
 import hashlib
 import hmac
+import uuid
 from decimal import Decimal
 
 from .models import (
