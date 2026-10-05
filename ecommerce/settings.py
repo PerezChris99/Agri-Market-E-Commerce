@@ -194,6 +194,8 @@ FLUTTERWAVE_SECRET_KEY = os.environ.get('FLUTTERWAVE_SECRET_KEY', '')
 FLUTTERWAVE_ENCRYPTION_KEY = os.environ.get('FLUTTERWAVE_ENCRYPTION_KEY', '')
 FLUTTERWAVE_ENVIRONMENT = os.environ.get('FLUTTERWAVE_ENVIRONMENT', 'sandbox')
 FLUTTERWAVE_REDIRECT_URL = os.environ.get('FLUTTERWAVE_REDIRECT_URL', 'https://yourdomain.com/checkout/complete/')
+FLUTTERWAVE_WEBHOOK_SECRET_HASH = os.environ.get('FLUTTERWAVE_WEBHOOK_SECRET_HASH', '')
+MOMO_WEBHOOK_SECRET = os.environ.get('MOMO_WEBHOOK_SECRET', '')
 
 # Payment provider preference
 # Options: 'direct' (use MTN/Airtel APIs directly) or 'flutterwave' (use Flutterwave as unified gateway)
