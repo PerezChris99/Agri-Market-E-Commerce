@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from ratelimit.decorators import ratelimit
 from django.core.paginator import Paginator
