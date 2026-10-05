@@ -1,0 +1,31 @@
+name: Agri-Market CI
+
+on:
+  push:
+    branches: [perez, main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: ci-only-secret
+      DJANGO_DEBUG: 'True'
+      ALLOWED_HOSTS: localhost,127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Django system checks
+        run: python manage.py check
+      - name: Check migration drift
+        run: python manage.py makemigrations --check --dry-run
+      - name: Run tests
+        run: python manage.py test store --verbosity 2
