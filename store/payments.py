@@ -32,7 +32,7 @@ class BaseMobileMoneyProvider:
         self.base_url = ""
         self.api_key = ""
         self.api_secret = ""
-        self.environment = getattr(settings, 'MOBILE_MONEY_ENV', 'sandbox')
+        self.environment = 'sandbox'
     
     def initiate_payment(self, phone_number, amount, reference, description=""):
         """Initiate a payment request"""
@@ -93,10 +93,11 @@ class MTNMobileMoneyProvider(BaseMobileMoneyProvider):
     
     def __init__(self):
         super().__init__()
-        self.subscription_key = getattr(settings, 'MTN_SUBSCRIPTION_KEY', '')
-        self.api_user = getattr(settings, 'MTN_API_USER', '')
-        self.api_key = getattr(settings, 'MTN_API_KEY', '')
-        self.callback_url = getattr(settings, 'MTN_CALLBACK_URL', '')
+        self.environment = getattr(settings, 'MTN_MOMO_ENVIRONMENT', 'sandbox')
+        self.subscription_key = getattr(settings, 'MTN_MOMO_SUBSCRIPTION_KEY', '')
+        self.api_user = getattr(settings, 'MTN_MOMO_API_USER', '')
+        self.api_key = getattr(settings, 'MTN_MOMO_API_KEY', '')
+        self.callback_url = getattr(settings, 'MTN_MOMO_CALLBACK_URL', '')
         
         if self.environment == 'sandbox':
             self.base_url = "https://sandbox.momodeveloper.mtn.com"
@@ -234,6 +235,7 @@ class AirtelMoneyProvider(BaseMobileMoneyProvider):
     
     def __init__(self):
         super().__init__()
+        self.environment = getattr(settings, 'AIRTEL_ENVIRONMENT', 'sandbox')
         self.client_id = getattr(settings, 'AIRTEL_CLIENT_ID', '')
         self.client_secret = getattr(settings, 'AIRTEL_CLIENT_SECRET', '')
         self.callback_url = getattr(settings, 'AIRTEL_CALLBACK_URL', '')
@@ -493,10 +495,11 @@ class PaymentGateway:
         Initialize payment gateway.
         use_flutterwave: Use Flutterwave as unified provider (recommended for simplicity)
         """
-        self.use_flutterwave = use_flutterwave
-        
+        configured_provider = getattr(settings, 'MOBILE_MONEY_PROVIDER', 'flutterwave').lower()
+        self.use_flutterwave = use_flutterwave and configured_provider == 'flutterwave'
+
         # Check if Flutterwave is configured
-        if use_flutterwave and hasattr(settings, 'FLUTTERWAVE_SECRET_KEY'):
+        if self.use_flutterwave and getattr(settings, 'FLUTTERWAVE_SECRET_KEY', ''):
             self.default_provider = FlutterwaveProvider()
         else:
             self.use_flutterwave = False
@@ -505,7 +508,7 @@ class PaymentGateway:
         """Get specific provider instance"""
         if self.use_flutterwave:
             return self.default_provider
-        
+
         provider_class = self.PROVIDER_CLASSES.get(provider_name)
         if not provider_class:
             raise MobileMoneyError(f"Unknown provider: {provider_name}")
