@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 
-from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption
+from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption, SellerOrder, SellerPayout
 
 # Try to import new models
 try:
@@ -282,6 +282,20 @@ if UGANDA_MODELS:
             if request.user.is_superuser:
                 return None
             return ['national_id', 'payout_phone']
+
+    @admin.register(SellerOrder)
+    class SellerOrderAdmin(admin.ModelAdmin):
+        list_display = ['order', 'seller', 'status', 'subtotal', 'commission_amount', 'seller_amount', 'payout_status']
+        list_filter = ['status', 'payout_status', 'created_at']
+        search_fields = ['order__order_id', 'seller__business_name']
+        readonly_fields = ['subtotal', 'commission_amount', 'seller_amount', 'created_at', 'updated_at']
+
+    @admin.register(SellerPayout)
+    class SellerPayoutAdmin(admin.ModelAdmin):
+        list_display = ['seller', 'seller_order', 'amount', 'status', 'provider_reference', 'created_at']
+        list_filter = ['status', 'created_at']
+        search_fields = ['seller__business_name', 'seller_order__order__order_id', 'provider_reference']
+        readonly_fields = ['seller', 'seller_order', 'amount', 'created_at']
 
     @admin.register(BulkOrderRequest)
     class BulkOrderRequestAdmin(admin.ModelAdmin):
