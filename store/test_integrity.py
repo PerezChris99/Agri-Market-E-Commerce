@@ -268,3 +268,19 @@ class ReliabilityRegressionTests(TestCase):
         order = Order.objects.create(customer=buyer.customer)
         with self.assertRaises(Exception):
             order.mark_as_paid('TX-EMPTY-1', 'mobile_money_mtn')
+
+
+class SecurityHeaderTests(TestCase):
+    def test_public_response_has_request_id_and_permissions_policy(self):
+        response = self.client.get(reverse('homepage'))
+        self.assertTrue(response['X-Request-ID'])
+        self.assertEqual(response['Permissions-Policy'], 'camera=(), microphone=(), geolocation=(self)')
+
+    def test_short_password_is_rejected_by_application_validator(self):
+        form = CreateUserForm(data={
+            'username': 'short-pass-user',
+            'email': 'short@example.com',
+            'password1': 'short1!',
+            'password2': 'short1!',
+        })
+        self.assertFalse(form.is_valid())
