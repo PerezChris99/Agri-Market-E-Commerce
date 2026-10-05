@@ -249,6 +249,39 @@ class Order(models.Model):
                 'transaction_id', 'payment_method', 'payment_status',
                 'complete', 'status', 'date_updated'
             ])
+
+            from collections import defaultdict
+            seller_items = defaultdict(list)
+            for item in items:
+                if item.product and item.product.seller_id:
+                    seller_items[item.product.seller_id].append(item)
+
+            for seller_id, seller_order_items in seller_items.items():
+                seller_profile = getattr(Customer.objects.get(pk=seller_id), 'seller_profile', None)
+                if not seller_profile:
+                    continue
+                subtotal = sum((item.get_total for item in seller_order_items), Decimal('0'))
+                commission = subtotal * (seller_profile.commission_rate / Decimal('100'))
+                seller_order, _ = SellerOrder.objects.get_or_create(
+                    order=order,
+                    seller=seller_profile,
+                    defaults={
+                        'subtotal': subtotal,
+                        'commission_amount': commission,
+                        'seller_amount': subtotal - commission,
+                    },
+                )
+                if seller_order.subtotal != subtotal:
+                    seller_order.subtotal = subtotal
+                    seller_order.commission_amount = commission
+                    seller_order.seller_amount = subtotal - commission
+                    seller_order.save(update_fields=[
+                        'subtotal', 'commission_amount', 'seller_amount', 'updated_at'
+                    ])
+                OrderItem.objects.filter(
+                    pk__in=[item.pk for item in seller_order_items]
+                ).update(seller_order=seller_order)
+
             self.refresh_from_db()
             return True
 
@@ -588,6 +621,51 @@ class SellerProfile(models.Model):
     @property
     def is_verified(self):
         return self.verification_status == 'verified'
+
+
+class SellerOrder(models.Model):
+    """Seller-specific fulfillment and settlement ledger for a marketplace order."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'), ('processing', 'Processing'), ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'), ('cancelled', 'Cancelled'),
+    ]
+    PAYOUT_STATUS_CHOICES = [
+        ('pending', 'Pending'), ('eligible', 'Eligible'), ('paid', 'Paid'), ('failed', 'Failed'),
+    ]
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='seller_orders')
+    seller = models.ForeignKey(SellerProfile, on_delete=models.PROTECT, related_name='seller_orders')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0'))
+    commission_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0'))
+    seller_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0'))
+    payout_status = models.CharField(max_length=20, choices=PAYOUT_STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['order', 'seller'], name='unique_order_seller')]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.order.order_id} - {self.seller.business_name}"
+
+
+class SellerPayout(models.Model):
+    """Payout record linked to a seller settlement ledger."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'), ('processing', 'Processing'),
+        ('paid', 'Paid'), ('failed', 'Failed'),
+    ]
+    seller_order = models.OneToOneField(SellerOrder, on_delete=models.PROTECT, related_name='payout')
+    seller = models.ForeignKey(SellerProfile, on_delete=models.PROTECT, related_name='payouts')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    provider_reference = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Payout {self.seller.business_name}: UGX {self.amount}"
 
 
 class BulkOrderRequest(models.Model):
