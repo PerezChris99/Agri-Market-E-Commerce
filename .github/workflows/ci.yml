@@ -18,6 +18,11 @@ jobs:
     name: Django ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     strategy:
       fail-fast: false
       matrix:
