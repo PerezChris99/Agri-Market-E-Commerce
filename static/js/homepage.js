@@ -234,20 +234,20 @@ function initRecentlyViewed() {
         <div class="col-6 col-md-3">
             <div class="product-card h-100">
                 <div class="product-image-wrapper">
-                    <img src="${product.image}" alt="${product.name}" class="product-image">
+                    <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" class="product-image">
                     <div class="product-actions">
-                        <button class="action-btn add-to-cart-btn" data-product="${product.id}" data-action="add">
+                        <button class="action-btn add-to-cart-btn" data-product="${escapeHtml(product.id)}" data-action="add">
                             <i class="bi bi-cart-plus"></i>
                         </button>
                     </div>
                 </div>
                 <div class="product-info">
-                    <span class="product-category">${product.category}</span>
+                    <span class="product-category">${escapeHtml(product.category)}</span>
                     <h5 class="product-name">
-                        <a href="${product.url}">${product.name}</a>
+                        <a href="${safeLocalUrl(product.url)}">${escapeHtml(product.name)}</a>
                     </h5>
                     <div class="product-price-row">
-                        <span class="product-price">UGX ${product.price.toLocaleString()}</span>
+                        <span class="product-price">UGX ${Number(product.price || 0).toLocaleString()}</span>
                     </div>
                 </div>
             </div>
@@ -295,6 +295,16 @@ function trackProductView() {
         };
         addToRecentlyViewed(product);
     }
+}
+
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+}
+
+function safeLocalUrl(value) {
+    const url = String(value || '');
+    return url.startsWith('/') && !url.startsWith('//') ? url : '#';
 }
 
 /* ===== Product Recommendations ===== */
@@ -425,10 +435,11 @@ function showToast(message, type = 'info') {
     // Fallback toast implementation
     const toast = document.createElement('div');
     toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = `
-        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-' + (type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle');
+    const text = document.createElement('span');
+    text.textContent = String(message || '');
+    toast.append(icon, text);
     
     document.body.appendChild(toast);
     
