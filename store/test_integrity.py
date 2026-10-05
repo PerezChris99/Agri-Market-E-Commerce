@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .models import Customer, MobileMoneyPayment, Order, OrderItem, Product, PromoCode
+from .models import Customer, MobileMoneyPayment, Order, OrderItem, Product, PromoCode, SellerOrder, SellerProfile
 
 
 class CommerceIntegrityTests(TestCase):
@@ -155,3 +155,26 @@ class PromotionIntegrityTests(TestCase):
         valid, message = self.promo.is_valid(Decimal('20000'), self.customer)
         self.assertFalse(valid)
         self.assertIn('usage limit', message.lower())
+
+
+class MarketplaceSettlementTests(TestCase):
+    def test_paid_multi_vendor_order_creates_seller_ledgers(self):
+        buyer = User.objects.create_user(username='buyer-multi', password='strong-password-123')
+        seller_user = User.objects.create_user(username='farmer-multi', password='strong-password-123')
+        seller = SellerProfile.objects.create(
+            customer=seller_user.customer,
+            business_name='Test Farm',
+            commission_rate=Decimal('10.00'),
+        )
+        product = Product.objects.create(
+            name='Avocado', price=Decimal('10000.00'), stock=5, seller=seller.customer,
+        )
+        order = Order.objects.create(customer=buyer.customer)
+        item = OrderItem.objects.create(order=order, product=product, quantity=2)
+        self.assertTrue(order.mark_as_paid('TX-MULTI-1', 'mobile_money_mtn'))
+        settlement = SellerOrder.objects.get(order=order, seller=seller)
+        item.refresh_from_db()
+        self.assertEqual(settlement.subtotal, Decimal('20000.00'))
+        self.assertEqual(settlement.commission_amount, Decimal('2000.00'))
+        self.assertEqual(settlement.seller_amount, Decimal('18000.00'))
+        self.assertEqual(item.seller_order_id, settlement.id)
