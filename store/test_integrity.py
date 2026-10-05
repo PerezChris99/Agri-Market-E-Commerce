@@ -248,3 +248,23 @@ class ProductionHardeningTests(TestCase):
         self.assertTrue(order.place_cash_on_delivery())
         settlement = SellerOrder.objects.get(order=order, seller=seller)
         self.assertEqual(settlement.seller_amount, Decimal('9000.00'))
+
+
+class ReliabilityRegressionTests(TestCase):
+    def test_paid_order_cannot_consume_inventory_twice(self):
+        buyer = User.objects.create_user(username='idempotent-buyer', password='strong-password-123')
+        product = Product.objects.create(name='Onions', price=Decimal('4000.00'), stock=5)
+        order = Order.objects.create(customer=buyer.customer)
+        OrderItem.objects.create(order=order, product=product, quantity=2)
+        self.assertTrue(order.mark_as_paid('TX-IDEMPOTENT-1', 'mobile_money_mtn'))
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 3)
+        self.assertFalse(order.mark_as_paid('TX-IDEMPOTENT-2', 'mobile_money_mtn'))
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 3)
+
+    def test_empty_order_cannot_be_marked_paid(self):
+        buyer = User.objects.create_user(username='empty-buyer', password='strong-password-123')
+        order = Order.objects.create(customer=buyer.customer)
+        with self.assertRaises(Exception):
+            order.mark_as_paid('TX-EMPTY-1', 'mobile_money_mtn')
