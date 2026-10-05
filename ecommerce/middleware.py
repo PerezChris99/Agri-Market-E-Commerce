@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from django.conf import settings
@@ -9,7 +10,8 @@ class RequestIDMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.request_id = request.headers.get('X-Request-ID') or uuid.uuid4().hex
+        candidate = (request.headers.get('X-Request-ID') or '')[:64]
+        request.request_id = candidate if re.fullmatch(r'[A-Za-z0-9._-]{1,64}', candidate) else uuid.uuid4().hex
         if getattr(settings, 'SENTRY_DSN', ''):
             import sentry_sdk
             with sentry_sdk.configure_scope() as scope:
