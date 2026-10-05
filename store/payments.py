@@ -495,10 +495,11 @@ class PaymentGateway:
         Initialize payment gateway.
         use_flutterwave: Use Flutterwave as unified provider (recommended for simplicity)
         """
-        self.use_flutterwave = use_flutterwave
-        
+        configured_provider = getattr(settings, 'MOBILE_MONEY_PROVIDER', 'flutterwave').lower()
+        self.use_flutterwave = use_flutterwave and configured_provider == 'flutterwave'
+
         # Check if Flutterwave is configured
-        if use_flutterwave and getattr(settings, 'FLUTTERWAVE_SECRET_KEY', ''):
+        if self.use_flutterwave and getattr(settings, 'FLUTTERWAVE_SECRET_KEY', ''):
             self.default_provider = FlutterwaveProvider()
         else:
             self.use_flutterwave = False
