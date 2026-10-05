@@ -63,7 +63,7 @@
                     <div class="card h-100 shadow-sm product-card border-warning">
                         <div class="position-relative">
                             <a href="{% url 'product_detail' product.slug %}">
-                                <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}" loading="lazy" decoding="async">
                             </a>
                             <span class="badge bg-warning position-absolute top-0 end-0 m-2">Featured</span>
                             {% if not product.in_stock %}
@@ -111,7 +111,7 @@
                 <div class="card h-100 shadow-sm product-card">
                     <div class="position-relative">
                         <a href="{% url 'product_detail' product.slug %}">
-                            <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}">
+                            <img src="{{ product.imageURL }}" class="card-img-top product-image" alt="{{ product.name }}" loading="lazy" decoding="async">
                         </a>
                         {% if product.is_featured %}
                         <span class="badge bg-warning position-absolute top-0 end-0 m-2">Featured</span>
@@ -164,7 +164,7 @@
             <ul class="pagination justify-content-center">
                 {% if products.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                         <i class="bi bi-chevron-left"></i> Previous
                     </a>
                 </li>
@@ -202,8 +202,13 @@
     </div>
 </div>
 
-
-
-{% block extra_js %}<script defer src="{% static 'js/store.js' %}"></script>{% endblock %}
+<script>
+function applySorting() {
+    var sortValue = document.getElementById('sort-select').value;
+    var url = new URL(window.location.href);
+    url.searchParams.set('sort', sortValue);
+    window.location.href = url.toString();
+}
+</script>
 
 {% endblock content %}
