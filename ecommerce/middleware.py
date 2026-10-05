@@ -10,4 +10,5 @@ class RequestIDMiddleware:
         request.request_id = request.headers.get('X-Request-ID') or uuid.uuid4().hex
         response = self.get_response(request)
         response['X-Request-ID'] = request.request_id
+        response['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(self)'
         return response
