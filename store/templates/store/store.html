@@ -164,7 +164,7 @@
             <ul class="pagination justify-content-center">
                 {% if products.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
                         <i class="bi bi-chevron-left"></i> Previous
                     </a>
                 </li>
@@ -202,13 +202,8 @@
     </div>
 </div>
 
-<script>
-function applySorting() {
-    var sortValue = document.getElementById('sort-select').value;
-    var url = new URL(window.location.href);
-    url.searchParams.set('sort', sortValue);
-    window.location.href = url.toString();
-}
-</script>
+
+
+{% block extra_js %}<script defer src="{% static 'js/store.js' %}"></script>{% endblock %}
 
 {% endblock content %}
