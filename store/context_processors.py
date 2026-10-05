@@ -1,5 +1,6 @@
 from .utils import cartData
 from .models import Category
+from django.core.cache import cache
 
 
 def cart_data(request):
@@ -12,6 +13,8 @@ def cart_data(request):
 
 def categories(request):
     """Context processor to make categories available in all templates"""
-    return {
-        'all_categories': Category.objects.filter(is_active=True),
-    }
+    categories = cache.get('navigation:categories')
+    if categories is None:
+        categories = list(Category.objects.filter(is_active=True).order_by('name'))
+        cache.set('navigation:categories', categories, 300)
+    return {'all_categories': categories}
