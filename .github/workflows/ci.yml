@@ -29,7 +29,7 @@ jobs:
       ALLOWED_HOSTS: localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: https://localhost
       DATABASE_URL: sqlite:///ci.sqlite3
-      SECURE_SSL_REDIRECT: 'False'
+      SECURE_SSL_REDIRECT: 'True'
       SENTRY_DSN: ''
       CELERY_TASK_ALWAYS_EAGER: 'True'
       PAYPAL_MODE: sandbox
