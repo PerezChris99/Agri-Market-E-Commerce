@@ -33,6 +33,11 @@ urlpatterns = [
     # Admin Dashboard
     path('dashboard/', views.admin_dashboard, name="admin_dashboard"),
     
+    # Delivery Tracking API
+    path('api/delivery/<str:order_id>/', views.delivery_tracking, name='delivery_tracking'),
+    path('api/delivery/<str:order_id>/location/', views.update_delivery_location, name='delivery_location'),
+    path('api/delivery/<str:order_id>/status/', views.update_delivery_status, name='delivery_status'),
+    
     # Mobile Money Payment API
     path('api/momo/initiate/', views.initiate_momo_payment, name="momo_initiate"),
     path('api/momo/status/', views.check_momo_status, name="momo_status"),
