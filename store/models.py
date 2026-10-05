@@ -463,18 +463,27 @@ class MobileMoneyPayment(models.Model):
         super().save(*args, **kwargs)
     
     def mark_successful(self, provider_reference=None):
-        """Mark payment as successful"""
-        self.status = 'successful'
-        self.completed_at = timezone.now()
-        if provider_reference:
-            self.provider_reference = provider_reference
-        self.save()
-        
-        # Update the order
-        self.order.mark_as_paid(
-            transaction_id=self.transaction_id,
-            payment_method=f"mobile_money_{self.provider}"
-        )
+        """Mark a payment successful exactly once after the order is safely paid."""
+        with transaction.atomic():
+            payment = MobileMoneyPayment.objects.select_for_update().get(pk=self.pk)
+            if payment.status == 'successful':
+                return False
+
+            if provider_reference:
+                payment.provider_reference = str(provider_reference)
+
+            payment.order.mark_as_paid(
+                transaction_id=payment.transaction_id,
+                payment_method=f"mobile_money_{payment.provider}",
+            )
+
+            payment.status = 'successful'
+            payment.completed_at = timezone.now()
+            payment.save(update_fields=[
+                'provider_reference', 'status', 'completed_at', 'updated_at'
+            ])
+            self.refresh_from_db()
+            return True
     
     def mark_failed(self, message="Payment failed"):
         """Mark payment as failed"""
