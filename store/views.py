@@ -923,7 +923,7 @@ def admin_dashboard(request):
         order__complete=True,
         order__date_ordered__date__gte=start_date
     ).annotate(
-        item_total=F('quantity') * F('product__price')
+        item_total=F('quantity') * Coalesce(F('price_at_purchase'), F('product__price'), Decimal('0'))
     ).values('product__category__name').annotate(
         total=Sum('item_total')
     ).order_by('-total')[:6]
@@ -937,7 +937,7 @@ def admin_dashboard(request):
         order__date_ordered__date__gte=start_date,
         order__date_ordered__date__lte=end_date
     ).annotate(
-        item_total=F('quantity') * F('product__price')
+        item_total=F('quantity') * Coalesce(F('price_at_purchase'), F('product__price'), Decimal('0'))
     ).aggregate(total=Sum('item_total'))['total'] or 0
     
     total_orders = orders.count()
@@ -951,7 +951,7 @@ def admin_dashboard(request):
     top_products = OrderItem.objects.filter(
         order__complete=True
     ).annotate(
-        item_total=F('quantity') * F('product__price')
+        item_total=F('quantity') * Coalesce(F('price_at_purchase'), F('product__price'), Decimal('0'))
     ).values('product__name', 'product__id').annotate(
         sold=Sum('quantity'),
         revenue=Sum('item_total')
