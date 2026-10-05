@@ -8,6 +8,14 @@
 
 AgriMarket is a comprehensive e-commerce platform designed specifically for the Ugandan agricultural market. It connects farmers directly with consumers, supports local mobile money payments (MTN MoMo & Airtel Money), and provides SMS notifications for order updates.
 
+## 🚦 Production Status
+
+The project is a Django-based Ugandan agricultural marketplace with production transaction controls and infrastructure foundations.
+
+**Implemented:** core catalog/cart/checkout, Uganda delivery zones, seller profiles, mobile-money/Flutterwave integrations, server-side payment validation, COD inventory commitment, reviews, wishlists, promo redemption accounting, seller settlement ledgers, authenticated delivery tracking APIs, Redis/Celery hooks, S3-compatible media storage, Sentry hooks, payment rate limiting, audit logging, and automated tests/CI checks.
+
+**Still planned:** dedicated rider/mobile UX, websocket/SSE live tracking, automated seller payout execution and provider reconciliation, refunds/chargebacks, B2B credit terms, cross-border settlement, advanced forecasting, and a dedicated public REST/mobile API.
+
 ---
 
 ## ✨ Features
@@ -235,7 +243,7 @@ AT_SENDER_ID=AgriMarket
 | `PromoCode` | Discount codes |
 | `Review` | Product reviews and ratings |
 | `Wishlist` | Customer wishlists |
-| `USSDSession` | Feature phone USSD support |
+| `USSDSession` | Feature phone USSD support |\n| `PromoRedemption` | Immutable promo usage ledger |\n| `SellerOrder` | Seller-specific fulfillment and settlement |\n| `SellerPayout` | Seller payout ledger |\n| `DeliveryLocation` | GPS location history |\n| `AuditLog` | Security and operational audit trail |
 
 ---
 
@@ -246,7 +254,10 @@ AT_SENDER_ID=AgriMarket
 ```
 POST /api/momo/initiate/    - Initiate mobile money payment
 GET  /api/momo/status/      - Check payment status
-POST /api/momo/callback/    - Payment callback (webhook)
+POST /api/momo/callback/    - Authenticated payment callback (webhook)
+GET  /api/delivery/<order_id>/ - Delivery tracking
+POST /api/delivery/<order_id>/location/ - Rider/staff GPS update
+POST /api/delivery/<order_id>/status/ - Rider/staff status update
 ```
 
 ### Store API
@@ -294,22 +305,24 @@ python manage.py populate_uganda_data --products-only
 
 ---
 
-## 🔒 Security Features
+## 🔒 Security & Production Controls
 
-- CSRF protection on all forms
-- Secure password hashing
-- Session-based authentication
-- Environment variable for secrets
-- SQL injection prevention (Django ORM)
-- XSS protection headers
+- CSRF protection on browser forms
+- Fail-closed production secrets and DEBUG configuration
+- PostgreSQL via DATABASE_URL in production
+- Atomic inventory commits with oversell protection
+- Idempotent payment finalization
+- Server-side mobile-money amount/reference validation
+- Webhook signature verification
+- Server-side PayPal transaction verification
+- Payment endpoint rate limiting
+- Sensitive seller KYC/payout fields restricted in admin
+- Operational audit logging
+- Django CI checks and integrity tests
 
 ---
 
 ## 🧪 Development
-
-### Admin Credentials (Development Only)
-- **Username**: admin
-- **Password**: admin123
 
 ### Running Tests
 ```bash
@@ -322,14 +335,13 @@ python manage.py makemigrations store
 python manage.py migrate
 ```
 
----
 
 ## 📦 Technologies
 
 | Category | Technology |
 |----------|------------|
 | Backend | Django 4.2+, Python 3.10+ |
-| Database | SQLite (dev), PostgreSQL (prod) |
+| Database | SQLite (development), PostgreSQL (production) |
 | Frontend | Bootstrap 5.3, JavaScript |
 | Payments | MTN MoMo, Airtel Money, PayPal, Flutterwave |
 | SMS | Africa's Talking, Twilio |
