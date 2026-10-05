@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from ratelimit.decorators import ratelimit
 from django.core.paginator import Paginator
@@ -217,6 +218,7 @@ def product_detail(request, slug):
 
 
 @login_required(login_url="/login/")
+@never_cache
 def cart(request):
     """Shopping cart view"""
     data = cartData(request, create=True)
@@ -326,6 +328,7 @@ def add_to_cart(request, item_id):
         return JsonResponse({'success': False, 'message': 'Unable to add product to cart.'}, status=500)
 
 
+@never_cache
 def checkout(request):
     """Checkout page view"""
     data = cartData(request, create=True)
@@ -443,6 +446,7 @@ def processOrder(request):
 
 
 @ratelimit(key='ip', rate='5/h', method='POST', block=True)
+@never_cache
 def registerPage(request):
     """User registration view"""
     if request.user.is_authenticated:
@@ -467,6 +471,8 @@ def registerPage(request):
 
 
 @ratelimit(key='ip', rate='10/m', method='POST', block=True)
+@ratelimit(key='post:username', rate='5/m', method='POST', block=True)
+@never_cache
 def loginPage(request):
     """User login view"""
     if request.user.is_authenticated:
@@ -514,6 +520,7 @@ def logout_user(request):
 
 
 @login_required(login_url="/login/")
+@never_cache
 def profile(request):
     """User profile/dashboard view"""
     customer = request.user.customer
@@ -546,6 +553,7 @@ def profile(request):
 
 
 @login_required(login_url="/login/")
+@never_cache
 def order_detail(request, order_id):
     """View single order details"""
     order = get_object_or_404(
@@ -630,6 +638,7 @@ def toggle_wishlist(request):
 
 
 @login_required(login_url="/login/")
+@never_cache
 def wishlist(request):
     """View user's wishlist"""
     data = cartData(request)

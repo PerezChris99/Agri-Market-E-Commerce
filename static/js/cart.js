@@ -51,7 +51,7 @@ function initializeWishlistButtons() {
 }
 
 function updateDatabaseCart(productId, action) {
-    fetch('/update_item/', {
+    fetchWithTimeout('/update_item/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ function updateCartCounter(count) {
 }
 
 function toggleWishlist(productId, buttonElement) {
-    fetch('/toggle-wishlist/', {
+    fetchWithTimeout('/toggle-wishlist/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -197,17 +197,3 @@ function showToast(message, type = 'success') {
     toast.show();
     toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
 }
-
-// Add CSS for pulse animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.2); }
-        100% { transform: scale(1); }
-    }
-    .pulse {
-        animation: pulse 0.3s ease-in-out;
-    }
-`;
-document.head.appendChild(style);

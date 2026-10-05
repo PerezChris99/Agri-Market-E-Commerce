@@ -182,7 +182,7 @@
             updatePaymentStatus('Sending payment request to ' + phone + '...');
             
             // Initiate Mobile Money Payment
-            fetch('/api/momo/initiate/', {
+            fetchWithTimeout('/api/momo/initiate/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,7 +221,7 @@
         const pollInterval = setInterval(function() {
             pollCount++;
             
-            fetch('/api/momo/status/?payment_id=' + paymentId)
+            fetchWithTimeout('/api/momo/status/?payment_id=' + paymentId)
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'successful') {
@@ -316,7 +316,7 @@
             'landmark': document.getElementById('landmark')?.value || '',
         };
 
-        fetch('/process_order/', {
+        fetchWithTimeout('/process_order/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

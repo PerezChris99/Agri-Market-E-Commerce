@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
 from .models import Customer, Review
 
 
@@ -123,6 +124,56 @@ class CheckoutForm(forms.Form):
     )
     phone = forms.CharField(
         max_length=20,
+        validators=[RegexValidator(r'^\\+?[0-9 ()-]{9,20}
+            'class': 'form-control',
+            'placeholder': 'Phone Number'
+        })
+    )
+    address = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Street Address'
+        })
+    )
+    city = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'City/Town'
+        })
+    )
+    region = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Region/District'
+        })
+    )
+    country = forms.CharField(
+        max_length=100,
+        initial='Uganda',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Country'
+        })
+    )
+    postal_code = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Postal Code (Optional)'
+        })
+    )
+    delivery_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Delivery Instructions (Optional)',
+            'rows': 2
+        })
+    )
+, 'Enter a valid phone number.')],
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'Phone Number'
