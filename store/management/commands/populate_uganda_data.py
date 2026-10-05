@@ -182,13 +182,20 @@ class Command(BaseCommand):
         created_count = 0
         updated_count = 0
         
+        region_values = {
+            'Central Region': 'central',
+            'Eastern Region': 'eastern',
+            'Northern Region': 'northern',
+            'Western Region': 'western',
+        }
         for region, data in uganda_zones.items():
+            region_value = region_values[region]
             for district, fee in data['districts']:
                 zone_name = f"{district}, {region}"
                 zone, created = DeliveryZone.objects.update_or_create(
                     name=zone_name,
                     defaults={
-                        'region': region,
+                        'region': region_value,
                         'delivery_fee': Decimal(str(fee)),
                         'estimated_days': self._get_delivery_days(region),
                         'is_active': True,
