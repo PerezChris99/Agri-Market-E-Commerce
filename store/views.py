@@ -116,7 +116,7 @@ def store(request):
     sort_by = request.GET.get('sort', 'newest')
     
     # Base queryset - only active products
-    products = Product.objects.filter(is_active=True)
+    products = Product.objects.filter(is_active=True).select_related('category', 'seller')
     
     # Filter by category
     if category_slug:
@@ -146,10 +146,10 @@ def store(request):
     products = paginator.get_page(page_number)
     
     # Get categories for filter sidebar
-    categories = Category.objects.filter(is_active=True).only('name', 'slug')
+    categories = Category.objects.filter(is_active=True).only('id', 'name', 'slug').annotate(product_count=Count('products', filter=Q(products__is_active=True)))
     
     # Get featured products
-    featured_products = Product.objects.filter(is_active=True, is_featured=True).select_related('category')[:4]
+    featured_products = Product.objects.filter(is_active=True, is_featured=True).select_related('category', 'seller')[:4]
     
     context = {
         "products": products,
@@ -165,7 +165,7 @@ def store(request):
 
 def product_detail(request, slug):
     """Single product detail view"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product.objects.select_related('category', 'seller'), slug=slug, is_active=True)
     data = cartData(request)
     cartItems = data['cartItems']
     
@@ -208,7 +208,7 @@ def product_detail(request, slug):
         'reviews': review_page,
         'review_page': review_page,
         'avg_rating': round(avg_rating, 1),
-        'review_count': reviews.count(),
+        'review_count': review_page.paginator.count,
         'can_review': can_review,
         'in_wishlist': in_wishlist,
         'cartItems': cartItems,
@@ -413,35 +413,22 @@ def processOrder(request):
         else:
             payment = None
 
-        with transaction.atomic():
-            locked_order = Order.objects.select_for_update().get(pk=order.pk)
-            if locked_order.complete:
-                return JsonResponse({'success': False, 'message': 'This order has already been completed.'}, status=409)
-
-            if payment_method == 'cod':
-                locked_order.place_cash_on_delivery()
-            elif payment_method in {'mtn', 'airtel'}:
-                locked_order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
-            else:
-                locked_order.mark_as_paid(transaction_id, payment_method='paypal')
-
-            if requires_shipping:
-                ShippingAddress.objects.update_or_create(
-                    order=locked_order,
-                    defaults={
-                        'customer': customer,
-                        'full_name': cleaned_shipping['name'],
-                        'phone': cleaned_shipping['phone'],
-                        'address': cleaned_shipping['address'],
-                        'city': cleaned_shipping['city'],
-                        'district': cleaned_shipping['region'],
-                        'region': cleaned_shipping['region'],
-                        'country': cleaned_shipping['country'],
-                        'postal_code': cleaned_shipping['postal_code'],
-                        'landmark': shipping_data.get('landmark', '')[:200],
-                        'delivery_notes': cleaned_shipping.get('delivery_notes', ''),
-                    },
-                )
+        from .services.orders import finalize_order
+        locked_order = finalize_order(
+            order_id=order.pk,
+            payment_method=payment_method,
+            transaction_id=transaction_id,
+            payment=payment,
+            customer=customer,
+            shipping={
+                **cleaned_shipping,
+                'landmark': shipping_data.get('landmark', ''),
+            } if requires_shipping else None,
+            actor=request.user if request.user.is_authenticated else None,
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+        if locked_order is None:
+            return JsonResponse({'success': False, 'message': 'This order has already been completed.'}, status=409)
 
         return JsonResponse({
             'success': True,
@@ -905,6 +892,17 @@ def check_momo_status(request):
         logger = __import__('logging').getLogger(__name__)
         logger.exception('Unexpected mobile-money status error')
         return JsonResponse({'success': False, 'message': 'Could not check payment status.'}, status=500)
+
+
+def ratelimit_error(request, exception):
+    response = JsonResponse(
+        {'success': False, 'message': 'Too many requests. Please try again shortly.'},
+        status=429,
+    ) if request.path.startswith('/api/') or request.headers.get('Accept', '').find('application/json') >= 0 else HttpResponse(
+        'Too many requests. Please try again shortly.', status=429, content_type='text/plain'
+    )
+    response['Retry-After'] = '60'
+    return response
 
 
 def _enqueue_payment_sms(order_id):

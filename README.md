@@ -201,6 +201,7 @@ Production practices include:
 Core performance work includes:
 
 - PostgreSQL indexes on high-frequency access paths
+- PostgreSQL `pg_trgm` GIN indexes for scalable catalog substring search
 - composite indexes matching real filters/orderings
 - cached navigation categories
 - cached homepage aggregate statistics

@@ -18,6 +18,11 @@ jobs:
     name: Django ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     strategy:
       fail-fast: false
       matrix:
@@ -29,7 +34,13 @@ jobs:
       ALLOWED_HOSTS: localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: https://localhost
       DATABASE_URL: sqlite:///ci.sqlite3
-      SECURE_SSL_REDIRECT: 'False'
+      REDIS_URL: redis://localhost:6379/0
+      AWS_STORAGE_BUCKET_NAME: ci-bucket
+      AWS_ACCESS_KEY_ID: ci-access-key
+      AWS_SECRET_ACCESS_KEY: ci-secret-key
+      AWS_S3_REGION_NAME: us-east-1
+      FLUTTERWAVE_SECRET_KEY: ci-flutterwave-secret
+      SECURE_SSL_REDIRECT: 'True'
       SENTRY_DSN: ''
       CELERY_TASK_ALWAYS_EAGER: 'True'
       PAYPAL_MODE: sandbox
