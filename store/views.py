@@ -907,6 +907,17 @@ def check_momo_status(request):
         return JsonResponse({'success': False, 'message': 'Could not check payment status.'}, status=500)
 
 
+def ratelimit_error(request, exception):
+    response = JsonResponse(
+        {'success': False, 'message': 'Too many requests. Please try again shortly.'},
+        status=429,
+    ) if request.path.startswith('/api/') or request.headers.get('Accept', '').find('application/json') >= 0 else HttpResponse(
+        'Too many requests. Please try again shortly.', status=429, content_type='text/plain'
+    )
+    response['Retry-After'] = '60'
+    return response
+
+
 def _enqueue_payment_sms(order_id):
     """Queue payment SMS after the database transaction commits."""
     try:
