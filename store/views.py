@@ -413,45 +413,20 @@ def processOrder(request):
         else:
             payment = None
 
-        with transaction.atomic():
-            locked_order = Order.objects.select_for_update().get(pk=order.pk)
-            if locked_order.complete:
-                return JsonResponse({'success': False, 'message': 'This order has already been completed.'}, status=409)
-
-            if payment_method == 'cod':
-                locked_order.place_cash_on_delivery()
-            elif payment_method in {'mtn', 'airtel'}:
-                locked_order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
-            else:
-                locked_order.mark_as_paid(transaction_id, payment_method='paypal')
-
-            from .services.audit import record_event
-            record_event(
-                action='order.completed',
-                object_type='Order',
-                object_id=locked_order.order_id,
-                actor=request.user if request.user.is_authenticated else None,
-                metadata={'payment_method': payment_method, 'amount': str(server_total)},
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
-
-            if requires_shipping:
-                ShippingAddress.objects.update_or_create(
-                    order=locked_order,
-                    defaults={
-                        'customer': customer,
-                        'full_name': cleaned_shipping['name'],
-                        'phone': cleaned_shipping['phone'],
-                        'address': cleaned_shipping['address'],
-                        'city': cleaned_shipping['city'],
-                        'district': cleaned_shipping['region'],
-                        'region': cleaned_shipping['region'],
-                        'country': cleaned_shipping['country'],
-                        'postal_code': cleaned_shipping['postal_code'],
-                        'landmark': shipping_data.get('landmark', '')[:200],
-                        'delivery_notes': cleaned_shipping.get('delivery_notes', ''),
-                    },
-                )
+        from .services.orders import finalize_order
+        locked_order = finalize_order(
+            order_id=order.pk,
+            payment_method=payment_method,
+            transaction_id=transaction_id,
+            payment=payment,
+            customer=customer,
+            shipping={
+                **cleaned_shipping,
+                'landmark': shipping_data.get('landmark', ''),
+            } if requires_shipping else None,
+            actor=request.user if request.user.is_authenticated else None,
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
 
         return JsonResponse({
             'success': True,
