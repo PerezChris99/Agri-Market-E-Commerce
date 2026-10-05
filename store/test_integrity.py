@@ -7,6 +7,8 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from .forms import CreateUserForm
+
 from .models import Customer, MobileMoneyPayment, Order, OrderItem, Product, PromoCode, SellerOrder, SellerProfile
 
 
