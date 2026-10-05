@@ -23,7 +23,10 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set when DEBUG=False')
 
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()]
+raw_allowed_hosts = os.environ.get('ALLOWED_HOSTS', '').strip()
+if not DEBUG and not raw_allowed_hosts:
+    raise ImproperlyConfigured('ALLOWED_HOSTS must be configured when DEBUG=False')
+ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(',') if host.strip()] if raw_allowed_hosts else ['localhost', '127.0.0.1']
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()]
 
 
@@ -321,6 +324,8 @@ LOGGING = {
 # ============================================
 
 REDIS_URL = os.environ.get('REDIS_URL', '').strip()
+if not DEBUG and not REDIS_URL:
+    raise ImproperlyConfigured('REDIS_URL must be configured when DEBUG=False')
 if REDIS_URL:
     CACHES = {
         'default': {
@@ -348,6 +353,8 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', '').strip()
+if not DEBUG and not AWS_STORAGE_BUCKET_NAME:
+    raise ImproperlyConfigured('AWS_STORAGE_BUCKET_NAME must be configured when DEBUG=False')
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', '')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', '') or None
 AWS_S3_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
@@ -413,3 +420,14 @@ CONTENT_SECURITY_POLICY = {
 APP_VERSION = os.environ.get('APP_VERSION', 'development')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@agrimarket.ug')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
+
+if not DEBUG:
+    if MOBILE_MONEY_PROVIDER == 'flutterwave' and not FLUTTERWAVE_SECRET_KEY:
+        raise ImproperlyConfigured('FLUTTERWAVE_SECRET_KEY is required in production when MOBILE_MONEY_PROVIDER=flutterwave')
+    if MOBILE_MONEY_PROVIDER == 'direct' and not (MTN_MOMO_API_USER and MTN_MOMO_API_KEY and MTN_MOMO_SUBSCRIPTION_KEY):
+        raise ImproperlyConfigured('MTN Mobile Money credentials are required in production when MOBILE_MONEY_PROVIDER=direct')
+    if not MOMO_WEBHOOK_SECRET:
+        raise ImproperlyConfigured('MOMO_WEBHOOK_SECRET must be configured in production')
+    if bool(PAYPAL_CLIENT_ID) != bool(PAYPAL_CLIENT_SECRET):
+        raise ImproperlyConfigured('PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET must be configured together')
