@@ -113,7 +113,7 @@ function initNewsletterForm() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Subscribing...';
         
-        fetch('/api/newsletter/subscribe/', {
+        fetchWithTimeout('/api/newsletter/subscribe/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -310,7 +310,7 @@ function initProductRecommendations() {
     
     // In production, this would be an API call
     // For now, we'll show the section with placeholder data
-    fetch(`/api/recommendations/?categories=${categories.join(',')}`)
+    fetchWithTimeout(`/api/recommendations/?categories=${categories.join(',')}`)
         .then(response => response.json())
         .then(data => {
             if (data.products && data.products.length > 0) {
