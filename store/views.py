@@ -13,6 +13,8 @@ from django.conf import settings
 
 import json
 import datetime
+import hashlib
+import hmac
 from decimal import Decimal
 
 from .models import (
@@ -591,226 +593,222 @@ def wishlist(request):
 
 @require_POST
 def initiate_momo_payment(request):
-    """
-    Initiate a Mobile Money payment (MTN MoMo or Airtel Money)
-    
-    Request body:
-        phone: Phone number (256XXXXXXXXX format)
-        amount: Amount in UGX
-        provider: 'mtn' or 'airtel'
-    """
+    """Create and initiate a server-owned mobile-money payment."""
     try:
         from .payments import PaymentGateway
         from .models import MobileMoneyPayment
-        
-        data = json.loads(request.body)
-        phone = data.get('phone', '').replace(' ', '').replace('+', '')
-        amount = Decimal(str(data.get('amount', 0)))
-        provider = data.get('provider', 'auto')
-        
-        if not phone or amount <= 0:
-            return JsonResponse({
-                'success': False,
-                'message': 'Invalid phone number or amount'
-            }, status=400)
-        
-        # Get order for this payment
-        if request.user.is_authenticated:
-            customer = request.user.customer
-            order = Order.objects.filter(customer=customer, complete=False).first()
-            if not order:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No pending order found'
-                }, status=400)
-        else:
-            # For guests, we need to handle differently
-            order = None
-        
-        # Create payment gateway
+
+        data = json.loads(request.body or '{}')
+        phone = str(data.get('phone', '')).strip()
+        amount = Decimal(str(data.get('amount', '0')))
+        requested_provider = str(data.get('provider', '')).lower()
+
+        if not request.user.is_authenticated:
+            return JsonResponse({'success': False, 'message': 'Login is required before starting a mobile-money payment.'}, status=401)
+        if amount <= 0:
+            return JsonResponse({'success': False, 'message': 'Invalid payment amount.'}, status=400)
+
+        customer = request.user.customer
+        order = Order.objects.filter(customer=customer, complete=False).first()
+        if not order:
+            return JsonResponse({'success': False, 'message': 'No pending order found.'}, status=400)
+
+        server_total = order.get_cart_total
+        if amount != server_total:
+            return JsonResponse({'success': False, 'message': 'Payment amount does not match the current order total.'}, status=400)
+
         gateway = PaymentGateway()
-        
-        # Generate unique reference
-        import uuid
-        reference = f"AGRI-{uuid.uuid4().hex[:8].upper()}"
-        
-        # Create payment record
+        provider = None if requested_provider in {'', 'auto'} else requested_provider
+        if provider not in {'mtn', 'airtel'}:
+            provider = gateway.detect_provider(phone)
+        if provider not in {'mtn', 'airtel'}:
+            return JsonResponse({'success': False, 'message': 'Could not determine a supported mobile-money provider.'}, status=400)
+
+        valid, normalized_phone = gateway.get_provider(provider).validate_phone(phone, provider)
+        if not valid:
+            return JsonResponse({'success': False, 'message': normalized_phone}, status=400)
+
+        reference = f"AGRI-{uuid.uuid4().hex[:16].upper()}"
         payment = MobileMoneyPayment.objects.create(
             order=order,
-            customer=request.user.customer if request.user.is_authenticated else None,
-            phone_number=phone,
+            phone_number=normalized_phone,
             amount=amount,
-            provider=provider if provider != 'auto' else gateway.detect_provider(phone),
+            provider=provider,
+            external_reference=reference,
+            status='processing',
+        )
+
+        success, provider_reference, message = gateway.initiate_payment(
+            provider=provider,
+            phone=normalized_phone,
+            amount=amount,
             reference=reference,
-            status='pending'
+            email=customer.email,
+            description=f"Agri-Market order {order.order_id}",
         )
-        
-        # Initiate payment
-        result = gateway.initiate_payment(
-            phone_number=phone,
-            amount=float(amount),
-            reference=reference
-        )
-        
-        if result['success']:
-            payment.external_reference = result.get('external_ref')
+
+        if success:
+            payment.provider_reference = str(provider_reference or '')
             payment.status = 'pending'
-            payment.save()
-            
+            payment.save(update_fields=['provider_reference', 'status', 'updated_at'])
             return JsonResponse({
                 'success': True,
-                'message': 'Payment initiated. Please check your phone.',
+                'message': 'Payment initiated. Please approve the request on your phone.',
                 'payment_id': payment.id,
-                'reference': reference
+                'reference': reference,
             })
-        else:
-            payment.status = 'failed'
-            payment.failure_reason = result.get('message', 'Unknown error')
-            payment.save()
-            
-            return JsonResponse({
-                'success': False,
-                'message': result.get('message', 'Failed to initiate payment')
-            }, status=400)
-    
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=500)
+
+        payment.status = 'failed'
+        payment.status_message = message or 'Payment initiation failed'
+        payment.save(update_fields=['status', 'status_message', 'updated_at'])
+        return JsonResponse({'success': False, 'message': payment.status_message}, status=400)
+
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        return JsonResponse({'success': False, 'message': 'Invalid payment request.'}, status=400)
+    except Exception:
+        logger = __import__('logging').getLogger(__name__)
+        logger.exception('Unexpected mobile-money initiation error')
+        return JsonResponse({'success': False, 'message': 'Payment service temporarily unavailable.'}, status=500)
 
 
 @require_GET
 def check_momo_status(request):
-    """
-    Check Mobile Money payment status
-    
-    Query params:
-        payment_id: ID of the MobileMoneyPayment record
-    """
+    """Poll a payment while preserving order ownership and provider verification."""
     try:
         from .payments import PaymentGateway
         from .models import MobileMoneyPayment
-        
+
         payment_id = request.GET.get('payment_id')
-        
         if not payment_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Payment ID required'
-            }, status=400)
-        
-        payment = MobileMoneyPayment.objects.filter(id=payment_id).first()
-        
-        if not payment:
-            return JsonResponse({
-                'success': False,
-                'message': 'Payment not found'
-            }, status=404)
-        
-        # If already completed, return status
+            return JsonResponse({'success': False, 'message': 'Payment ID required.'}, status=400)
+
+        payment = get_object_or_404(
+            MobileMoneyPayment.objects.select_related('order__customer'),
+            id=payment_id,
+        )
+
+        if not request.user.is_authenticated or payment.order.customer_id != request.user.customer.id:
+            return JsonResponse({'success': False, 'message': 'Not authorized to view this payment.'}, status=403)
+
         if payment.status == 'successful':
-            return JsonResponse({
-                'success': True,
-                'status': 'successful',
-                'message': 'Payment completed'
-            })
-        elif payment.status == 'failed':
-            return JsonResponse({
-                'success': True,
-                'status': 'failed',
-                'message': payment.failure_reason or 'Payment failed'
-            })
-        
-        # Check with payment gateway
+            return JsonResponse({'success': True, 'status': 'successful', 'message': 'Payment completed.'})
+        if payment.status in {'failed', 'cancelled', 'timeout'}:
+            return JsonResponse({'success': True, 'status': 'failed', 'message': payment.status_message or 'Payment failed.'})
+
         gateway = PaymentGateway()
-        result = gateway.check_status(payment.reference)
-        
-        if result.get('status') == 'successful':
-            payment.status = 'successful'
-            payment.save()
-            
-            # Mark order as paid if exists
-            if payment.order:
-                payment.order.mark_as_paid(payment.reference, payment_method=payment.provider)
-            
-            return JsonResponse({
-                'success': True,
-                'status': 'successful',
-                'message': 'Payment completed'
-            })
-        elif result.get('status') == 'failed':
-            payment.status = 'failed'
-            payment.failure_reason = result.get('message', 'Transaction declined')
-            payment.save()
-            
-            return JsonResponse({
-                'success': True,
-                'status': 'failed',
-                'message': payment.failure_reason
-            })
-        else:
-            return JsonResponse({
-                'success': True,
-                'status': 'pending',
-                'message': 'Waiting for payment confirmation'
-            })
-    
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=500)
+        reference = payment.provider_reference or payment.external_reference
+        status, details = gateway.check_status(payment.provider, reference)
+
+        if status == 'successful':
+            provider_amount = details.get('amount')
+            if provider_amount is not None and Decimal(str(provider_amount)) != payment.amount:
+                payment.mark_failed('Provider amount does not match the order amount.')
+                return JsonResponse({'success': False, 'status': 'failed', 'message': 'Payment amount verification failed.'}, status=400)
+            payment.mark_successful(provider_reference=details.get('transaction_id') or payment.provider_reference)
+            return JsonResponse({'success': True, 'status': 'successful', 'message': 'Payment completed.'})
+
+        if status == 'failed':
+            payment.mark_failed(details.get('message', 'Transaction declined.'))
+            return JsonResponse({'success': True, 'status': 'failed', 'message': payment.status_message})
+
+        return JsonResponse({'success': True, 'status': 'pending', 'message': 'Waiting for payment confirmation.'})
+
+    except Exception:
+        logger = __import__('logging').getLogger(__name__)
+        logger.exception('Unexpected mobile-money status error')
+        return JsonResponse({'success': False, 'message': 'Could not check payment status.'}, status=500)
 
 
+def _verify_payment_webhook(request):
+    """Verify Flutterwave or configured mobile-money webhook authenticity."""
+    body = request.body
+    flutterwave_hash = request.headers.get('verif-hash', '')
+    configured_flutterwave = getattr(settings, 'FLUTTERWAVE_WEBHOOK_SECRET_HASH', '')
+    if configured_flutterwave:
+        return bool(flutterwave_hash) and hmac.compare_digest(flutterwave_hash, configured_flutterwave)
+
+    secret = getattr(settings, 'MOMO_WEBHOOK_SECRET', '')
+    signature = (
+        request.headers.get('X-Webhook-Signature')
+        or request.headers.get('X-Callback-Signature')
+        or request.headers.get('X-Signature')
+        or ''
+    )
+    if secret:
+        expected = hmac.new(secret.encode('utf-8'), body, hashlib.sha256).hexdigest()
+        return bool(signature) and hmac.compare_digest(signature, expected)
+
+    return False
+
+
+@require_POST
 def momo_callback(request):
-    """
-    Mobile Money payment callback endpoint
-    Called by payment provider when payment status changes
-    """
+    """Process an authenticated, idempotent payment provider callback."""
+    if not _verify_payment_webhook(request):
+        return JsonResponse({'status': 'error', 'message': 'Webhook verification failed.'}, status=401)
+
     try:
         from .models import MobileMoneyPayment
-        from .sms import send_order_sms
-        
-        data = json.loads(request.body) if request.body else {}
-        
-        reference = data.get('reference') or data.get('transactionId') or data.get('tx_ref')
-        status = data.get('status', '').lower()
-        
-        if not reference:
-            return JsonResponse({'status': 'error', 'message': 'No reference'}, status=400)
-        
-        payment = MobileMoneyPayment.objects.filter(
-            Q(reference=reference) | Q(external_reference=reference)
-        ).first()
-        
+        data = json.loads(request.body or '{}')
+        nested = data.get('data') if isinstance(data.get('data'), dict) else {}
+
+        reference = (
+            data.get('reference')
+            or data.get('transactionId')
+            or data.get('tx_ref')
+            or data.get('external_reference')
+            or nested.get('tx_ref')
+            or nested.get('id')
+        )
+        provider_reference = (
+            data.get('provider_reference')
+            or data.get('transactionId')
+            or data.get('id')
+            or nested.get('id')
+        )
+
+        if not reference and provider_reference:
+            payment = MobileMoneyPayment.objects.filter(
+                Q(provider_reference=str(provider_reference))
+                | Q(external_reference=str(provider_reference))
+                | Q(transaction_id=str(provider_reference))
+            ).first()
+        else:
+            payment = MobileMoneyPayment.objects.filter(
+                Q(external_reference=str(reference))
+                | Q(provider_reference=str(reference))
+                | Q(transaction_id=str(reference))
+            ).first()
+
         if not payment:
-            return JsonResponse({'status': 'error', 'message': 'Payment not found'}, status=404)
-        
-        # Update payment status
-        if status in ['successful', 'success', 'completed']:
-            payment.status = 'successful'
-            payment.save()
-            
-            # Mark order as paid
-            if payment.order:
-                payment.order.mark_as_paid(reference, payment_method=payment.provider)
-                
-                # Send SMS confirmation
-                try:
-                    send_order_sms(payment.order, 'payment_received')
-                except:
-                    pass
-        
-        elif status in ['failed', 'cancelled', 'declined']:
-            payment.status = 'failed'
-            payment.failure_reason = data.get('message', 'Transaction failed')
-            payment.save()
-        
+            return JsonResponse({'status': 'error', 'message': 'Payment not found.'}, status=404)
+
+        callback_amount = data.get('amount') or nested.get('amount')
+        if callback_amount is not None and Decimal(str(callback_amount)) != payment.amount:
+            payment.mark_failed('Provider callback amount does not match the order amount.')
+            return JsonResponse({'status': 'error', 'message': 'Amount mismatch.'}, status=400)
+
+        callback_currency = str(data.get('currency') or nested.get('currency') or 'UGX').upper()
+        if callback_currency != 'UGX':
+            payment.mark_failed('Provider callback currency is not UGX.')
+            return JsonResponse({'status': 'error', 'message': 'Currency mismatch.'}, status=400)
+
+        status = str(data.get('status') or nested.get('status') or '').lower()
+        if status in {'successful', 'success', 'completed'}:
+            payment.mark_successful(provider_reference=str(provider_reference or reference or payment.provider_reference))
+        elif status in {'failed', 'cancelled', 'declined', 'error'}:
+            payment.mark_failed(data.get('message') or nested.get('message') or 'Transaction failed.')
+        else:
+            return JsonResponse({'status': 'ok', 'message': 'Payment remains pending.'})
+
         return JsonResponse({'status': 'ok'})
-    
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON.'}, status=400)
+    except Exception:
+        logger = __import__('logging').getLogger(__name__)
+        logger.exception('Unexpected mobile-money callback error')
+        return JsonResponse({'status': 'error', 'message': 'Callback processing failed.'}, status=500)
 
 
 @require_POST
