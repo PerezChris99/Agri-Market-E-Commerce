@@ -179,7 +179,7 @@ Create a `.env` file in the project root:
 ```env
 # Django
 DJANGO_SECRET_KEY=your-secret-key
-DEBUG=True
+DEBUG=False
 
 # PayPal
 PAYPAL_CLIENT_ID=your-paypal-client-id
