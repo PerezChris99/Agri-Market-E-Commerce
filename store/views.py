@@ -6,6 +6,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.db.models import Q, Avg, Sum, Count, F
 from django.db.models.functions import TruncDate, Coalesce
@@ -742,6 +743,7 @@ def _verify_payment_webhook(request):
     return False
 
 
+@csrf_exempt
 @require_POST
 def momo_callback(request):
     """Process an authenticated, idempotent payment provider callback."""
