@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render
-from django.db.models import Sum, Count, Avg
-from django.db.models.functions import TruncDate
+from django.db.models import Sum, Count, Avg, F
+from django.db.models.functions import TruncDate, Coalesce
 from django.utils import timezone
 from datetime import timedelta
 import json
@@ -50,8 +50,8 @@ class AgriMarketAdminSite(admin.AdminSite):
         
         # Basic stats
         total_revenue = Order.objects.filter(
-            complete=True, payment_status='paid'
-        ).aggregate(total=Sum('orderitem__price_at_purchase'))['total'] or 0
+            complete=True, payment_status='completed'
+        ).annotate(item_total=F('orderitem__quantity') * F('orderitem__price_at_purchase')).aggregate(total=Sum('item_total'))['total'] or 0
         
         total_orders = Order.objects.filter(complete=True).count()
         pending_orders = Order.objects.filter(status='pending').count()
@@ -67,7 +67,7 @@ class AgriMarketAdminSite(admin.AdminSite):
             date=TruncDate('date_ordered')
         ).values('date').annotate(
             total=Count('id'),
-            revenue=Sum('orderitem__price_at_purchase')
+            revenue=Sum(F('orderitem__quantity') * F('orderitem__price_at_purchase'))
         ).order_by('date')
         
         sales_labels = [item['date'].strftime('%b %d') for item in sales_by_date]
@@ -80,7 +80,7 @@ class AgriMarketAdminSite(admin.AdminSite):
         category_sales = OrderItem.objects.filter(
             order__complete=True
         ).values('product__category__name').annotate(
-            total=Sum('price_at_purchase')
+            total=Sum(F('quantity') * F('price_at_purchase'))
         ).order_by('-total')[:8]
         
         category_labels = [item['product__category__name'] or 'Uncategorized' for item in category_sales]
