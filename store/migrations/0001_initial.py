@@ -222,11 +222,11 @@ class Migration(migrations.Migration):
             model_name='shippingaddress', name='gps_coordinates',
             field=models.CharField(blank=True, default='', help_text='lat,lng for delivery', max_length=50),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='shippingaddress', name='region',
             field=models.CharField(default='Central Region', max_length=100),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='shippingaddress', name='postal_code',
             field=models.CharField(blank=True, default='', max_length=20),
         ),
