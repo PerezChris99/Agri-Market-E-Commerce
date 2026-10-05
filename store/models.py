@@ -249,6 +249,8 @@ class Order(models.Model):
                 return False
 
             items = list(order.items.select_related('product'))
+            if not items:
+                raise ValidationError('Cannot place an empty order.')
             for item in items:
                 if not item.product or item.product.digital:
                     continue
