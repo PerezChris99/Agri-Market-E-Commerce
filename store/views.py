@@ -425,6 +425,16 @@ def processOrder(request):
             else:
                 locked_order.mark_as_paid(transaction_id, payment_method='paypal')
 
+            from .services.audit import record_event
+            record_event(
+                action='order.completed',
+                object_type='Order',
+                object_id=locked_order.order_id,
+                actor=request.user if request.user.is_authenticated else None,
+                metadata={'payment_method': payment_method, 'amount': str(server_total)},
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
+
             if requires_shipping:
                 ShippingAddress.objects.update_or_create(
                     order=locked_order,
