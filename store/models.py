@@ -686,6 +686,18 @@ class PromoCode(models.Model):
         
         if self.max_uses > 0 and self.times_used >= self.max_uses:
             return False, "This promo code has reached its usage limit"
+
+        if user is not None:
+            customer = getattr(user, 'customer', user)
+            if hasattr(customer, 'pk'):
+                if self.max_uses_per_user > 0 and PromoRedemption.objects.filter(
+                    promo=self, customer=customer
+                ).count() >= self.max_uses_per_user:
+                    return False, "You have reached the usage limit for this promo code"
+                if self.first_order_only and Order.objects.filter(
+                    customer=customer, complete=True
+                ).exists():
+                    return False, "This promo code is only valid on a first order"
         
         if order_total < self.min_order_amount:
             return False, f"Minimum order amount is UGX {self.min_order_amount:,.0f}"
@@ -697,6 +709,24 @@ class PromoCode(models.Model):
         if self.discount_type == 'percentage':
             return order_total * (self.discount_value / 100)
         return min(self.discount_value, order_total)
+
+
+class PromoRedemption(models.Model):
+    """Immutable ledger entry for a promo code redemption."""
+    promo = models.ForeignKey(PromoCode, on_delete=models.PROTECT, related_name='redemptions')
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='promo_redemptions')
+    order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name='promo_redemption')
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-redeemed_at']
+        constraints = [
+            models.UniqueConstraint(fields=['promo', 'order'], name='unique_promo_order_redemption'),
+        ]
+
+    def __str__(self):
+        return f"{self.promo.code} - {self.order.order_id}"
 
 
 class USSDSession(models.Model):

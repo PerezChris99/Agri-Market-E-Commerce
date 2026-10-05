@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .models import Customer, MobileMoneyPayment, Order, OrderItem, Product
+from .models import Customer, MobileMoneyPayment, Order, OrderItem, Product, PromoCode
 
 
 class CommerceIntegrityTests(TestCase):
@@ -126,3 +126,32 @@ class PaymentEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payment.refresh_from_db()
         self.assertEqual(payment.status, 'successful')
+
+
+class PromotionIntegrityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='promo-user', password='strong-password-123')
+        self.customer = self.user.customer
+        self.product = Product.objects.create(name='Beans', price=Decimal('20000.00'), stock=10)
+        self.order = Order.objects.create(customer=self.customer)
+        OrderItem.objects.create(order=self.order, product=self.product, quantity=1)
+        from django.utils import timezone
+        self.promo = PromoCode.objects.create(
+            code='WELCOME10',
+            discount_type='percentage',
+            discount_value=Decimal('10'),
+            max_uses=1,
+            max_uses_per_user=1,
+            valid_from=timezone.now() - timezone.timedelta(days=1),
+            valid_until=timezone.now() + timezone.timedelta(days=1),
+        )
+
+    def test_promo_redemption_is_ledgered_and_usage_is_counted(self):
+        from .services.promotions import redeem_promo
+        redemption = redeem_promo(self.promo, self.customer, self.order, Decimal('20000'))
+        self.assertEqual(redemption.discount_amount, Decimal('2000'))
+        self.promo.refresh_from_db()
+        self.assertEqual(self.promo.times_used, 1)
+        valid, message = self.promo.is_valid(Decimal('20000'), self.customer)
+        self.assertFalse(valid)
+        self.assertIn('usage limit', message.lower())

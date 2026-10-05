@@ -1,13 +1,13 @@
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render
-from django.db.models import Sum, Count, Avg
-from django.db.models.functions import TruncDate
+from django.db.models import Sum, Count, Avg, F
+from django.db.models.functions import TruncDate, Coalesce
 from django.utils import timezone
 from datetime import timedelta
 import json
 
-from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review
+from .models import Customer, Product, Order, OrderItem, ShippingAddress, Category, Wishlist, Review, PromoRedemption
 
 # Try to import new models
 try:
@@ -50,8 +50,8 @@ class AgriMarketAdminSite(admin.AdminSite):
         
         # Basic stats
         total_revenue = Order.objects.filter(
-            complete=True, payment_status='paid'
-        ).aggregate(total=Sum('orderitem__price_at_purchase'))['total'] or 0
+            complete=True, payment_status='completed'
+        ).annotate(item_total=F('orderitem__quantity') * F('orderitem__price_at_purchase')).aggregate(total=Sum('item_total'))['total'] or 0
         
         total_orders = Order.objects.filter(complete=True).count()
         pending_orders = Order.objects.filter(status='pending').count()
@@ -67,7 +67,7 @@ class AgriMarketAdminSite(admin.AdminSite):
             date=TruncDate('date_ordered')
         ).values('date').annotate(
             total=Count('id'),
-            revenue=Sum('orderitem__price_at_purchase')
+            revenue=Sum(F('orderitem__quantity') * F('orderitem__price_at_purchase'))
         ).order_by('date')
         
         sales_labels = [item['date'].strftime('%b %d') for item in sales_by_date]
@@ -80,7 +80,7 @@ class AgriMarketAdminSite(admin.AdminSite):
         category_sales = OrderItem.objects.filter(
             order__complete=True
         ).values('product__category__name').annotate(
-            total=Sum('price_at_purchase')
+            total=Sum(F('quantity') * F('price_at_purchase'))
         ).order_by('-total')[:8]
         
         category_labels = [item['product__category__name'] or 'Uncategorized' for item in category_sales]
@@ -277,6 +277,12 @@ if UGANDA_MODELS:
         search_fields = ['business_name', 'customer__user__username']
         list_editable = ['verification_status']
 
+        def get_exclude(self, request, obj=None):
+            # National ID and payout phone are sensitive seller data. Only superusers may access them.
+            if request.user.is_superuser:
+                return None
+            return ['national_id', 'payout_phone']
+
     @admin.register(BulkOrderRequest)
     class BulkOrderRequestAdmin(admin.ModelAdmin):
         list_display = ['product', 'quantity', 'company_name', 'status', 'created_at']
@@ -289,6 +295,13 @@ if UGANDA_MODELS:
         list_filter = ['discount_type', 'is_active']
         search_fields = ['code']
         list_editable = ['is_active']
+
+    @admin.register(PromoRedemption)
+    class PromoRedemptionAdmin(admin.ModelAdmin):
+        list_display = ['promo', 'customer', 'order', 'discount_amount', 'redeemed_at']
+        list_filter = ['redeemed_at']
+        search_fields = ['promo__code', 'customer__user__username', 'order__order_id']
+        readonly_fields = ['promo', 'customer', 'order', 'discount_amount', 'redeemed_at']
 
 
 # Register extended models if available
