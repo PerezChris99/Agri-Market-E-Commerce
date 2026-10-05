@@ -91,6 +91,11 @@ if DATABASE_URL:
     try:
         import dj_database_url
         DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG)}
+        if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+            DATABASES['default']['OPTIONS'] = {
+                'connect_timeout': 5,
+                'options': '-c statement_timeout=15000',
+            }
     except ImportError as exc:
         raise ImproperlyConfigured('dj-database-url is required when DATABASE_URL is configured') from exc
 else:
@@ -331,7 +336,11 @@ if REDIS_URL:
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
-            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+            },
         }
     }
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
@@ -434,3 +443,5 @@ if not DEBUG:
 
 RATELIMIT_FAIL_OPEN = False
 RATELIMIT_VIEW = 'store.views.ratelimit_error'
+
+WHITENOISE_MAX_AGE = 31536000
