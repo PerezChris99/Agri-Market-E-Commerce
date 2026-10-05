@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
 from django.db.models import Q, Avg, Sum, Count, F
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, Coalesce
 from django.conf import settings
 
 import json
@@ -892,7 +892,7 @@ def admin_dashboard(request):
         order__date_ordered__date__lte=end_date
     ).annotate(
         day=TruncDate('order__date_ordered'),
-        item_total=F('quantity') * F('product__price')
+        item_total=F('quantity') * Coalesce(F('price_at_purchase'), F('product__price'), Decimal('0'))
     ).values('day').annotate(
         total=Sum('item_total'),
         count=Count('order', distinct=True)
