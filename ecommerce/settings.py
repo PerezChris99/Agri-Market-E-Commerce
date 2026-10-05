@@ -447,5 +447,3 @@ RATELIMIT_FAIL_OPEN = False
 RATELIMIT_VIEW = 'store.views.ratelimit_error'
 
 WHITENOISE_MAX_AGE = 31536000
-
-RATELIMIT_VIEW = 'store.views.ratelimit_error'
