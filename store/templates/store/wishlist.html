@@ -22,7 +22,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-heart me-2 text-danger"></i>My Wishlist</h5>
-                <span class="badge bg-danger">{{ wishlist_items.paginator.count }} items</span>
+                <span class="badge bg-danger">{{ wishlist_items.count }} items</span>
             </div>
             <div class="card-body">
                 {% if wishlist_items %}
@@ -33,7 +33,7 @@
                             <div class="position-relative">
                                 <a href="{% url 'product_detail' item.product.slug %}">
                                     <img src="{{ item.product.imageURL }}" class="card-img-top product-image" 
-                                         alt="{{ item.product.name }}">
+                                         alt="{{ item.product.name }}" loading="lazy" decoding="async">
                                 </a>
                                 <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 wishlist-btn" 
                                         data-product-id="{{ item.product.id }}" title="Remove from wishlist">
@@ -84,15 +84,6 @@
     </div>
 </div>
 
-{% if wishlist_items.has_other_pages %}
-                <nav aria-label="Wishlist pagination" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if wishlist_items.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ wishlist_items.previous_page_number }}">Previous</a></li>{% endif %}
-                        <li class="page-item active"><span class="page-link">Page {{ wishlist_items.number }} of {{ wishlist_items.paginator.num_pages }}</span></li>
-                        {% if wishlist_items.has_next %}<li class="page-item"><a class="page-link" href="?page={{ wishlist_items.next_page_number }}">Next</a></li>{% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
 }
 
 {% endblock %}
