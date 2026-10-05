@@ -7,12 +7,20 @@
 (function() {
     'use strict';
 
-    // Get checkout data from global variable set by template
-    const checkoutData = window.checkoutData || {};
-    const total = checkoutData.total || 0;
-    const shipping = checkoutData.shipping || false;
-    const csrftoken = checkoutData.csrftoken || '';
-    const userInfo = checkoutData.userInfo || {};
+    const page = document.getElementById('checkout-page');
+    const checkoutData = {
+        total: Number(page?.dataset.total || 0),
+        shipping: page?.dataset.shipping === 'true',
+        storeUrl: page?.dataset.storeUrl || '/shop/',
+        userInfo: {
+            name: page?.dataset.userName || '',
+            email: page?.dataset.userEmail || ''
+        }
+    };
+    const total = checkoutData.total;
+    const shipping = checkoutData.shipping;
+    const csrftoken = window.csrftoken || ''; 
+    const userInfo = checkoutData.userInfo;
 
     // Convert UGX to USD (approximate rate for PayPal)
     const usdTotal = (total / 3700).toFixed(2);
@@ -143,19 +151,19 @@
             const airtelPrefixes = ['070', '074', '075'];
             
             if (mtnPrefixes.some(p => phone.startsWith(p))) {
-                hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>MTN Mobile Money number detected';
+                hint.textContent = 'MTN Mobile Money number detected';
                 payBtn.disabled = false;
                 payBtn.className = 'btn btn-warning btn-lg w-100';
             } else if (airtelPrefixes.some(p => phone.startsWith(p))) {
-                hint.innerHTML = '<i class="bi bi-check-circle text-danger me-1"></i>Airtel Money number detected';
+                hint.textContent = 'Airtel Money number detected';
                 payBtn.disabled = false;
                 payBtn.className = 'btn btn-danger btn-lg w-100';
             } else {
-                hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Unknown mobile network';
+                hint.textContent = 'Unknown mobile network';
                 payBtn.disabled = true;
             }
         } else {
-            hint.innerHTML = 'Enter 9 digits (e.g., 772 123 456)';
+            hint.textContent = 'Enter 9 digits (e.g., 772 123 456)';
             payBtn.disabled = true;
         }
     }
@@ -325,7 +333,7 @@
         .then(data => {
             if (data.success) {
                 // Clear cart cookie
-                document.cookie = 'cart={}; domain=; path=/';
+                if (window.setCartCookie) window.setCartCookie({});;
                 
                 // Show success
                 updatePaymentStatus(
@@ -352,25 +360,43 @@
     function updatePaymentStatus(message) {
         const statusEl = document.getElementById('payment-status-msg');
         if (statusEl) {
-            statusEl.innerHTML = message;
+            statusEl.textContent = String(message || '');
         }
     }
 
     function showToast(message, type) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'position-fixed bottom-0 end-0 p-3 checkout-toast';
+        wrapper.style.zIndex = '1100';
+
         const toast = document.createElement('div');
-        toast.className = 'position-fixed bottom-0 end-0 p-3 checkout-toast';
-        toast.style.zIndex = '1100';
-        toast.innerHTML = `
-            <div class="toast show align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'}" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(function() { toast.remove(); }, 5000);
+        toast.className = 'toast show align-items-center text-white ' +
+            (type === 'error' ? 'bg-danger' : 'bg-success');
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+
+        const row = document.createElement('div');
+        row.className = 'd-flex';
+
+        const body = document.createElement('div');
+        body.className = 'toast-body';
+        body.textContent = String(message || '');
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-close btn-close-white me-2 m-auto';
+        close.setAttribute('aria-label', 'Close');
+
+        row.append(body, close);
+        toast.appendChild(row);
+        wrapper.appendChild(toast);
+        document.body.appendChild(wrapper);
+
+        close.addEventListener('click', () => wrapper.remove());
+        setTimeout(() => wrapper.remove(), 5000);
     }
+
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
