@@ -431,3 +431,6 @@ if not DEBUG:
         raise ImproperlyConfigured('MOMO_WEBHOOK_SECRET must be configured in production')
     if bool(PAYPAL_CLIENT_ID) != bool(PAYPAL_CLIENT_SECRET):
         raise ImproperlyConfigured('PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET must be configured together')
+
+RATELIMIT_FAIL_OPEN = False
+RATELIMIT_VIEW = 'store.views.ratelimit_error'
