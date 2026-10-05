@@ -351,8 +351,7 @@ def checkout(request):
 def processOrder(request):
     """Create an order only after server-side payment validation."""
     try:
-        from .models import MobileMoneyPayment
-        from .payments import verify_paypal_transaction
+        from .services.payments import get_verified_mobile_payment, verify_paypal
 
         data = json.loads(request.body or '{}')
         payment_method = str(data.get('payment_method', '')).lower()
@@ -380,19 +379,17 @@ def processOrder(request):
         if payment_method == 'cod':
             order.place_cash_on_delivery()
         elif payment_method in {'mtn', 'airtel'}:
-            payment = MobileMoneyPayment.objects.filter(
+            payment = get_verified_mobile_payment(
                 order=order,
-                status='successful',
-            ).filter(
-                Q(provider_reference=transaction_id)
-                | Q(external_reference=transaction_id)
-                | Q(transaction_id=transaction_id)
-            ).first()
-            if not payment or payment.amount != server_total or payment.provider != payment_method:
+                transaction_id=transaction_id,
+                provider=payment_method,
+                amount=server_total,
+            )
+            if not payment:
                 return JsonResponse({'success': False, 'message': 'Verified mobile-money payment not found.'}, status=400)
             order.mark_as_paid(payment.transaction_id, payment_method=f'mobile_money_{payment.provider}')
         else:
-            if not transaction_id or not verify_paypal_transaction(transaction_id, server_total):
+            if not verify_paypal(transaction_id=transaction_id, amount=server_total):
                 return JsonResponse({'success': False, 'message': 'PayPal payment could not be verified.'}, status=400)
             order.mark_as_paid(transaction_id, payment_method='paypal')
 
