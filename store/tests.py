@@ -479,9 +479,10 @@ class PromoTests(UserFactoryMixin, TestCase):
         product = self.make_product(price='10000')
         promo = self.make_promo()
         first = self.make_order(customer, product)
+        redeem_promo(promo_code=promo, customer=customer, order=first, order_total=Decimal('10000'))
+        first.place_cash_on_delivery()
         second = self.make_order(customer, product)
 
-        redeem_promo(promo_code=promo, customer=customer, order=first, order_total=Decimal('10000'))
         with self.assertRaises(ValidationError):
             redeem_promo(promo_code=promo, customer=customer, order=second, order_total=Decimal('10000'))
 
