@@ -35,3 +35,28 @@ class NationalQualityTests(TestCase):
     def test_sync_api_rejects_missing_key(self):
         response = self.client.post(reverse("api_v1_sync"), data="{}", content_type="application/json")
         self.assertEqual(response.status_code, 401)
+
+    def test_expired_key_is_rejected(self):
+        from django.utils import timezone
+        client, raw = issue_api_key(name="expired", expires_at=timezone.now() - timezone.timedelta(minutes=1))
+        self.assertFalse(client.is_valid())
+        self.assertIsNone(authenticate_api_key(raw))
+
+    def test_disabled_key_is_rejected(self):
+        client, raw = issue_api_key(name="disabled")
+        client.is_active = False
+        client.save(update_fields=["is_active"])
+        self.assertIsNone(authenticate_api_key(raw))
+
+    def test_hub_api_is_available(self):
+        from .national_models import LogisticsHub
+        LogisticsHub.objects.create(name="Central Hub", hub_type="collection")
+        response = self.client.get(reverse("api_v1_hubs"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"][0]["name"], "Central Hub")
+
+    def test_readiness_is_staff_protected(self):
+        client, raw = issue_api_key(name="readiness")
+        response = self.client.get(reverse("api_v1_readiness"), HTTP_X_API_KEY=raw)
+        self.assertEqual(response.status_code, 403)
+
