@@ -85,13 +85,14 @@ WSGI_APPLICATION = 'ecommerce.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
+DATABASE_SSL_REQUIRE = os.environ.get('DATABASE_SSL_REQUIRE', 'True' if not DEBUG else 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
 if not DEBUG and not DATABASE_URL:
     raise ImproperlyConfigured('DATABASE_URL must be set when DEBUG=False')
 
 if DATABASE_URL:
     try:
         import dj_database_url
-        DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG)}
+        DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=DATABASE_SSL_REQUIRE)}
         if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
             DATABASES['default'].setdefault('OPTIONS', {}).update({
                 'connect_timeout': 5,
