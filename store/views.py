@@ -67,7 +67,7 @@ def homepage(request):
         Product.objects.filter(is_active=True)
         .select_related('category')
         .annotate(
-            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), 0),
+            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), Value(0.0), output_field=FloatField()),
             review_count=Count('reviews', filter=Q(reviews__is_approved=True)),
         )
         .order_by('-created_at')[:4]
