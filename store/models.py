@@ -1243,8 +1243,8 @@ class AuditLog(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['object_type', 'object_id']),
-            models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['object_type', 'object_id'], name='store_audit_object_idx'),
+            models.Index(fields=['action', 'created_at'], name='store_audit_action_idx'),
         ]
 
     def __str__(self):
