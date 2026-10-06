@@ -1,46 +1,102 @@
 # Agri-Market
 
-> Production-oriented agricultural commerce platform built for Uganda.
+> **Production-oriented agricultural commerce platform for Uganda.**
 
 [![CI](https://github.com/PerezChris99/Agri-Market-E-Commerce/actions/workflows/ci.yml/badge.svg)](https://github.com/PerezChris99/Agri-Market-E-Commerce/actions/workflows/ci.yml)
 [![Django](https://img.shields.io/badge/Django-5.2_LTS-0C4B33?logo=django&logoColor=white)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Cache%2FBroker-Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 
-Agri-Market is a Django marketplace for fresh agricultural products, connecting Ugandan farmers and sellers with consumers and larger buyers. The platform is designed around local commerce requirements including UGX pricing, MTN Mobile Money, Airtel Money, Uganda-wide delivery zones, SMS notifications, seller verification, delivery tracking, and marketplace settlement.
+**Copyright © 2026 Kweezi Perez. All rights reserved except as expressly granted under the MIT License.**
 
-The engineering target is straightforward: **secure transactions, predictable data integrity, efficient queries, observable services, and a deployment process that fails before bad code reaches production.**
+Agri-Market is a Django-based agricultural marketplace connecting Ugandan farmers and sellers with consumers and larger buyers. The platform is designed around local commerce requirements including UGX pricing, Mobile Money, Uganda-wide delivery zones, seller verification, delivery operations, promotions, reviews, and marketplace settlement.
+
+The engineering objective is:
+
+> **Secure transactions. Strong data integrity. Predictable performance. Observable operations. Controlled deployments.**
 
 ---
 
-## What the platform does
+## Table of contents
+
+- [Platform overview](#platform-overview)
+- [Core capabilities](#core-capabilities)
+- [System architecture](#system-architecture)
+- [Commerce flow](#commerce-flow)
+- [Payment flow](#payment-flow)
+- [Inventory and order integrity](#inventory-and-order-integrity)
+- [Marketplace and settlement flow](#marketplace-and-settlement-flow)
+- [Delivery flow](#delivery-flow)
+- [Security architecture](#security-architecture)
+- [Performance engineering](#performance-engineering)
+- [Data model](#data-model)
+- [API surface](#api-surface)
+- [Repository structure](#repository-structure)
+- [Local development](#local-development)
+- [Production configuration](#production-configuration)
+- [Testing and quality gates](#testing-and-quality-gates)
+- [CI/CD](#cicd)
+- [Production boundary](#production-boundary)
+- [Deployment principles](#deployment-principles)
+- [Copyright and license](#copyright-and-license)
+
+---
+
+## Platform overview
+
+Agri-Market is intentionally implemented as a **modular Django monolith**.
+
+The architecture keeps the transactional core in one deployable application while separating important business responsibilities into service modules. This provides strong transactional consistency without introducing the operational complexity of premature microservices.
+
+### Design priorities
+
+| Area | Engineering objective |
+|---|---|
+| Commerce | Correct carts, checkout, orders, promotions, and historical pricing |
+| Payments | Verified, authenticated, idempotent payment processing |
+| Inventory | Atomic stock changes and concurrency protection |
+| Marketplace | Seller ownership, commissions, settlements, and auditability |
+| Delivery | Authorization, status history, GPS events, and operational traceability |
+| Security | Defense in depth, secure defaults, rate limiting, CSP, and least privilege |
+| Performance | Indexed queries, bounded result sets, caching, and relationship preloading |
+| Reliability | Transactions, health probes, audit events, and failure-aware integrations |
+| Operations | CI gates, migration checks, dependency auditing, and observability hooks |
+
+---
+
+## Core capabilities
 
 ### Commerce
+
 - Agricultural product catalog and category browsing
-- Product search, filtering, sorting, and pagination
+- Search, filtering, sorting, and pagination
 - Persistent authenticated carts
 - Cookie-based anonymous carts
-- Guest cash-on-delivery checkout
+- Guest Cash on Delivery checkout
 - Authenticated electronic-payment checkout
 - Order history and order detail views
-- Wishlist management
-- Verified product reviews
-- Promotional codes and redemption ledger
+- Wishlists
+- Verified product reviews and review images
+- Promotional codes with redemption ledger
+- Immutable purchase-time pricing
 
 ### Payments
+
 - MTN Mobile Money
 - Airtel Money
 - PayPal
 - Flutterwave integration architecture
 - Cash on Delivery
-- Server-side amount/reference verification
+- Server-side payment/reference validation
 - Authenticated webhook verification
-- Idempotent payment finalization
+- Payment idempotency
 - Atomic inventory commitment
-- Payment endpoint rate limiting
+- Rate-limited payment endpoints
 
 ### Marketplace
+
 - Farmer/seller profiles
 - Seller verification state
 - Seller-specific order records
@@ -50,7 +106,9 @@ The engineering target is straightforward: **secure transactions, predictable da
 - Bulk-order foundation
 
 ### Delivery
+
 - Uganda delivery zones
+- Delivery pricing/free-delivery thresholds
 - Rider accounts
 - Delivery status history
 - GPS location history
@@ -59,258 +117,443 @@ The engineering target is straightforward: **secure transactions, predictable da
 - Delivery OTP foundation
 
 ### Operations
-- Django admin
-- Sales analytics
+
+- Django administration
+- Sales/operational analytics
 - Redis caching
 - Celery background-task infrastructure
 - S3-compatible media storage
 - Sentry integration hooks
 - Liveness/readiness health endpoints
 - Operational audit logging
-- CI migration drift detection
+- Migration drift detection
 - Dependency vulnerability auditing
 
 ---
 
-## Architecture
+# System architecture
 
-~~~text
-Browser
-  │
-  ├── Django templates
-  ├── Bootstrap
-  └── Static JavaScript
-          │
-          ▼
-     Django / WSGI
-          │
-          ├── Views / API endpoints
-          ├── Service layer
-          │     ├── payments
-          │     ├── delivery
-          │     ├── promotions
-          │     └── audit
-          │
-          ├── PostgreSQL
-          │     ├── indexed commerce data
-          │     ├── transactional order state
-          │     └── seller settlement ledgers
-          │
-          ├── Redis
-          │     ├── cache
-          │     └── Celery broker/result backend
-          │
-          ├── Object storage
-          │     └── user/product/delivery media
-          │
-          └── External providers
-                ├── MTN / Airtel
-                ├── Flutterwave / PayPal
-                ├── SMS
-                └── WhatsApp
-~~~
+The production topology is designed around a transactional Django core with managed infrastructure and external provider boundaries.
 
-The application intentionally remains a Django monolith at this stage. The domain is large enough to require clear service boundaries, but not large enough to justify the operational cost of prematurely splitting the system into microservices.
+```mermaid
+flowchart TB
+    U[Customer / Seller / Rider / Staff] --> E[HTTPS / Trusted Edge]
+    E --> W[Django Application]
+
+    W --> V[Views / Internal API]
+    V --> S[Domain Services]
+    S --> O[Orders & Checkout]
+    S --> P[Payments]
+    S --> D[Delivery]
+    S --> R[Promotions]
+    S --> A[Audit]
+
+    W --> DB[(PostgreSQL)]
+    W --> C[(Redis)]
+    W --> M[(Object Storage)]
+
+    C --> CW[Celery Workers]
+
+    P --> MM[MTN / Airtel]
+    P --> PP[PayPal / Flutterwave]
+    CW --> MSG[SMS / WhatsApp]
+
+    W --> MON[Sentry / Logs / Health Probes]
+```
+
+### Architectural principles
+
+1. **PostgreSQL is the transactional source of truth.**
+2. **Redis is an acceleration and asynchronous-work dependency, not the system of record.**
+3. **External payment providers are treated as untrusted boundaries until server-side verification succeeds.**
+4. **Critical order and inventory changes occur inside database transactions.**
+5. **Slow or retryable work is moved toward Celery/background execution.**
+6. **Provider-specific integrations remain behind application boundaries so the commerce domain is not coupled to one vendor.**
 
 ---
 
-## Production engineering standards
+# Commerce flow
 
-### Security
+The primary customer journey is:
 
-The application uses Django's security middleware and production deployment controls including:
+```mermaid
+flowchart LR
+    A[Browse catalog] --> B[Product detail]
+    B --> C[Add to cart]
+    C --> D[Review cart]
+    D --> E[Checkout]
+    E --> F{Payment method}
+
+    F -->|Cash on Delivery| G[Validate order]
+    F -->|Mobile Money| H[Initiate provider payment]
+    F -->|PayPal / other gateway| I[Gateway verification]
+
+    H --> J[Authenticated callback]
+    J --> K[Verify amount / reference / order]
+    I --> K
+    G --> L[Transactional finalization]
+    K --> L
+
+    L --> M[Commit inventory]
+    M --> N[Create seller settlements]
+    N --> O[Persist shipping]
+    O --> P[Order confirmed]
+    P --> Q[Delivery lifecycle]
+```
+
+### Checkout invariants
+
+A successful order must satisfy all applicable invariants:
+
+- the order belongs to the expected customer/session;
+- the order is not already complete;
+- the order contains at least one item;
+- the payment method is supported;
+- electronic payments have passed server-side verification;
+- the payment amount matches the expected order amount;
+- inventory can be committed atomically;
+- seller settlement records can be materialized;
+- shipping information is persisted consistently.
+
+---
+
+# Payment flow
+
+Payment processing is deliberately separated from order finalization.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Django
+    participant DB as PostgreSQL
+    participant PG as Payment Provider
+
+    C->>A: Request checkout/payment
+    A->>DB: Validate open order
+    A->>PG: Initiate / verify payment
+    PG-->>A: Provider response / callback
+
+    A->>A: Authenticate callback
+    A->>A: Verify reference
+    A->>A: Verify amount
+    A->>A: Verify currency/status
+    A->>DB: Lock order
+
+    alt Already finalized
+        DB-->>A: Existing completed state
+        A-->>C: Idempotent result
+    else Valid payment
+        A->>DB: Atomic inventory decrement
+        A->>DB: Mark payment/order complete
+        A->>DB: Materialize seller settlements
+        A->>DB: Record audit event
+        DB-->>A: Commit
+        A-->>C: Success
+    else Invalid payment
+        A-->>C: Reject
+    end
+```
+
+### Payment security boundary
+
+The browser is **not** trusted to determine:
+
+- final payment status;
+- transaction identity;
+- payment amount;
+- inventory availability;
+- order completion;
+- seller settlement values.
+
+Those decisions are made server-side.
+
+---
+
+# Inventory and order integrity
+
+Inventory is protected against duplicate callbacks and concurrent buyers.
+
+```mermaid
+flowchart TD
+    A[Order finalization] --> B[Begin DB transaction]
+    B --> C[Lock order row]
+    C --> D{Order already complete?}
+
+    D -->|Yes| E[Return idempotent result]
+    D -->|No| F[Validate payment / COD state]
+    F --> G[Atomic stock update]
+    G --> H{Stock sufficient?}
+
+    H -->|No| I[Rollback transaction]
+    H -->|Yes| J[Commit order state]
+    J --> K[Create seller settlements]
+    K --> L[Record audit event]
+    L --> M[Commit]
+```
+
+The critical stock operation is designed around an atomic database update rather than a vulnerable application-level read-then-write sequence.
+
+Historical order pricing is stored on the order item so later product price changes do not rewrite historical transactions.
+
+---
+
+# Marketplace and settlement flow
+
+```mermaid
+flowchart LR
+    O[Customer order] --> I[Order items]
+    I --> S[Seller ownership]
+    S --> C[Commission calculation]
+    C --> L[Seller settlement ledger]
+    L --> P[Future payout/reconciliation]
+    L --> A[Operational audit]
+```
+
+The settlement ledger is an accounting boundary. Automated payout execution and reconciliation remain separate production milestones and must not be implied by the existence of settlement records alone.
+
+---
+
+# Delivery flow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending
+    Pending --> Assigned
+    Assigned --> PickedUp
+    PickedUp --> InTransit
+    InTransit --> Delivered
+    Assigned --> Cancelled
+    PickedUp --> Cancelled
+    InTransit --> DeliveryFailed
+    DeliveryFailed --> InTransit
+    Delivered --> [*]
+    Cancelled --> [*]
+```
+
+Delivery updates are authorization-controlled. Customer, rider, and staff permissions are deliberately different.
+
+GPS/location data is treated as operationally sensitive and is not exposed through unrestricted endpoints.
+
+---
+
+# Security architecture
+
+Security is implemented as defense in depth.
+
+### Application controls
 
 - HTTPS enforcement in production
-- Secure, HttpOnly session cookies
-- SameSite cookies
+- Secure and HttpOnly cookies
+- SameSite cookie controls
 - CSRF protection
-- Host validation
+- strict host validation
 - HSTS
 - clickjacking protection
 - content-type sniffing protection
 - referrer policy
-- cross-origin opener/resource policies
+- Cross-Origin Opener/Resource policies
 - Content Security Policy
-- Argon2 password hashing for new/rehardened passwords
-- request body and upload-size limits
-- login and mutation endpoint rate limiting
+- Argon2 password hashing
+- request and upload-size limits
+- login/mutation/payment rate limiting
+- signed/authenticated provider callbacks
 - server-side payment verification
-- signed webhook verification
 - open-redirect protection
-- authorization checks on customer/rider delivery data
-- sensitive seller KYC/payout fields restricted in admin
-- dependency vulnerability scanning in CI
+- object ownership checks
+- seller KYC/payout access restrictions
+- safe JSON error responses
+- dependency vulnerability scanning
 
-### Database
+### Security model
 
-Production uses PostgreSQL.
+```mermaid
+flowchart TB
+    X[Untrusted Input] --> V[Validation]
+    V --> A[Authentication]
+    A --> Z[Authorization]
+    Z --> T[Transactional Domain Operation]
+    T --> L[Audit Event]
+    L --> R[Response]
 
-Database access follows these principles:
+    T --> D[(PostgreSQL)]
+    T --> P[External Provider Verification]
+```
 
-- foreign keys for relational integrity
-- unique constraints for business invariants
-- conditional uniqueness for one open customer cart/order
-- transactional checkout
-- row locking for order finalization
-- atomic stock updates
-- immutable purchase-time pricing
-- indexes for common filters, joins, sorting, and operational queries
-- \`select_related()\` / \`prefetch_related()\` for known relationships
-- no intentional N+1 query loops in core storefront flows
-- migration drift checked in CI
-- no SQLite production database committed to the repository
-
-### API
-
-Internal JSON endpoints use:
-
-- explicit HTTP methods
-- CSRF protection for browser-originated mutations
-- signed provider webhooks where applicable
-- ownership/authorization checks
-- bounded request payloads
-- rate limiting
-- server-side validation
-- consistent JSON error responses
-- safe error messages that do not expose internal exceptions
-- transactional state changes for critical operations
-
-The \`/api/\` surface is currently an internal application API. A public versioned REST API remains a separate product milestone.
-
-### Frontend
-
-The frontend is server-rendered Django HTML with static JavaScript.
-
-Production practices include:
-
-- deferred JavaScript loading
-- no unnecessary inline application JavaScript in the shared shell
-- CSP allowlisting for required third-party providers
-- safe DOM text rendering instead of interpolating untrusted values into HTML
-- CSRF-aware AJAX requests
-- bounded client-side cart state
-- responsive layouts
-- accessible form labels and ARIA attributes where appropriate
-- paginated product, review, wishlist, and order-history views
-- CDN-hosted framework assets with explicit origin allowlisting
+No client-controlled value should be treated as authoritative merely because it arrived through an authenticated browser session.
 
 ---
 
-## Performance
+# Performance engineering
 
-Core performance work includes:
+The application uses database-first performance controls rather than relying on frontend optimization alone.
 
-- PostgreSQL indexes on high-frequency access paths
-- PostgreSQL `pg_trgm` GIN indexes for scalable catalog substring search
-- composite indexes matching real filters/orderings
+### Implemented performance controls
+
+- PostgreSQL indexes on common access paths
+- `pg_trgm` GIN indexes for scalable product substring search
+- composite indexes aligned to real filters/orderings
 - cached navigation categories
-- cached homepage aggregate statistics
-- annotated product ratings instead of per-product review queries
+- cached homepage aggregates
+- annotated product ratings
 - batched anonymous-cart product lookup
 - batched cart merging
-- \`select_related()\` and \`prefetch_related()\` on account/order views
+- `select_related()` and `prefetch_related()`
 - persistent database connections in production
-- Redis-backed caching and sessions when configured
-- asynchronous SMS task infrastructure through Celery
-- production static-file handling through WhiteNoise
-- optional S3-compatible media storage
+- Redis-backed caching when configured
+- Celery infrastructure for asynchronous work
+- WhiteNoise production static-file handling
+- S3-compatible media storage
+- bounded pagination for user-visible collections
 
-Pagination is deliberately applied to user-visible collections rather than returning unbounded database result sets.
+### Performance model
 
----
+```mermaid
+flowchart LR
+    R[Request] --> C{Cache hit?}
+    C -->|Yes| X[Fast response]
+    C -->|No| Q[Optimized query]
+    Q --> DB[(PostgreSQL)]
+    DB --> P[Paginated / indexed result]
+    P --> X
+```
 
-## Reliability and availability
-
-The order lifecycle is designed around a transactional boundary:
-
-~~~text
-Client request
-     │
-     ▼
-Validate request
-     │
-     ▼
-Verify external payment
-     │
-     ▼
-Acquire order lock
-     │
-     ├── verify order is still open
-     ├── atomically reserve/decrement stock
-     ├── finalize payment
-     ├── create seller settlements
-     └── persist shipping information
-     │
-     ▼
-Commit transaction
-     │
-     ▼
-Queue notifications
-~~~
-
-Duplicate payment callbacks cannot repeatedly consume inventory.
-
-Health probes:
-
-~~~text
-GET /health/live/
-GET /health/ready/
-~~~
-
-\`live\` confirms the application process is responding.
-
-\`ready\` verifies critical runtime dependencies including the database and cache.
+Performance optimizations must preserve correctness. Cache invalidation, transaction boundaries, and stale-data risk therefore remain part of the design review for every optimization.
 
 ---
 
-## API surface
+# Data model
+
+The primary domain relationships can be represented as:
+
+```mermaid
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    CUSTOMER ||--o{ CART : owns
+    CUSTOMER ||--o{ REVIEW : writes
+    CUSTOMER ||--o{ WISHLIST : owns
+
+    SELLER ||--o{ PRODUCT : lists
+    SELLER ||--o{ SELLER_ORDER : receives
+    SELLER ||--o{ SETTLEMENT : earns
+
+    CATEGORY ||--o{ PRODUCT : contains
+    PRODUCT ||--o{ ORDER_ITEM : appears_in
+    PRODUCT ||--o{ REVIEW : receives
+
+    ORDER ||--|{ ORDER_ITEM : contains
+    ORDER ||--o| SHIPPING_ADDRESS : uses
+    ORDER ||--o{ PAYMENT : records
+    ORDER ||--o{ SELLER_ORDER : splits_into
+    ORDER ||--o{ PROMO_REDEMPTION : applies
+
+    PROMO_CODE ||--o{ PROMO_REDEMPTION : redeemed_by
+    CUSTOMER ||--o{ PROMO_REDEMPTION : makes
+
+    SELLER_ORDER ||--o{ SETTLEMENT : generates
+```
+
+The database additionally enforces business invariants through foreign keys, unique constraints, conditional constraints, indexes, and transactional locking.
+
+---
+
+# API surface
 
 ### Commerce
 
-~~~text
+```text
 POST /update_item/
 POST /add-to-cart/<product_id>/
 POST /process_order/
 POST /toggle-wishlist/
-~~~
+```
 
 ### Payments
 
-~~~text
+```text
 POST /api/momo/initiate/
 GET  /api/momo/status/
 POST /api/momo/callback/
-~~~
+```
 
 ### Delivery
 
-~~~text
+```text
 GET  /api/delivery/<order_id>/
 POST /api/delivery/<order_id>/location/
 POST /api/delivery/<order_id>/status/
-~~~
+```
 
 ### Operations
 
-~~~text
+```text
 GET /health/live/
 GET /health/ready/
-~~~
+```
+
+The current `/api/` surface is an internal application API. A public versioned REST/mobile API is a separate product milestone.
 
 ---
 
-## Local development
+# Repository structure
 
-### Requirements
+```text
+Agri-Market-E-Commerce/
+├── ecommerce/
+│   ├── settings.py
+│   ├── urls.py
+│   ├── celery.py
+│   └── wsgi.py
+│
+├── store/
+│   ├── models.py
+│   ├── views.py
+│   ├── forms.py
+│   ├── payments.py
+│   ├── sms.py
+│   ├── health.py
+│   ├── utils.py
+│   ├── tasks.py
+│   ├── services/
+│   │   ├── audit.py
+│   │   ├── delivery.py
+│   │   ├── orders.py
+│   │   ├── payments.py
+│   │   └── promotions.py
+│   ├── migrations/
+│   ├── management/
+│   ├── templates/
+│   └── tests.py
+│
+├── static/
+│   ├── css/
+│   ├── js/
+│   └── images/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── .env.example
+├── .gitignore
+├── LICENSE
+├── requirements.txt
+└── README.md
+```
+
+---
+
+# Local development
+
+## Requirements
 
 - Python 3.12+
 - PostgreSQL for production-like development
 - Redis when testing cache/Celery behavior
 - Git
 
-### Setup
+## Setup
 
-~~~bash
+```bash
 git clone https://github.com/PerezChris99/Agri-Market-E-Commerce.git
 cd Agri-Market-E-Commerce
 
@@ -332,17 +575,17 @@ python manage.py migrate
 python manage.py populate_uganda_data
 python manage.py createsuperuser
 python manage.py runserver
-~~~
+```
 
-For local development, SQLite may be used when \`DATABASE_URL\` is omitted. **Production must use PostgreSQL.**
+For local development, SQLite may be used when `DATABASE_URL` is omitted. **Production must use PostgreSQL.**
 
 ---
 
-## Production configuration
+# Production configuration
 
-At minimum, production should provide:
+At minimum:
 
-~~~env
+```env
 DJANGO_SECRET_KEY=<long-random-secret>
 DJANGO_DEBUG=False
 ALLOWED_HOSTS=your-domain.example
@@ -350,7 +593,6 @@ CSRF_TRUSTED_ORIGINS=https://your-domain.example
 SECURE_SSL_REDIRECT=True
 
 DATABASE_URL=postgresql://...
-
 REDIS_URL=redis://...
 
 AWS_STORAGE_BUCKET_NAME=...
@@ -361,169 +603,126 @@ AWS_S3_ENDPOINT_URL=...
 
 SENTRY_DSN=...
 APP_VERSION=...
-~~~
+```
 
-Payment and messaging credentials should be provided only for the providers actually enabled.
+Payment and messaging credentials should only be provided for enabled providers.
 
-Never commit \`.env\`, database credentials, provider secrets, API keys, private keys, uploaded media, SQLite databases, or runtime logs.
+Never commit:
+
+- `.env`
+- database credentials
+- provider secrets/API keys
+- private keys
+- uploaded media
+- SQLite databases
+- runtime logs
 
 ---
 
-## Background workers
+# Background workers
 
-Run the Django application with a production WSGI server such as Gunicorn.
+Run the Django application behind a production WSGI server such as Gunicorn.
 
-Celery workers are used for work that should not block the HTTP request lifecycle, such as notification delivery.
+Celery workers handle work that should not block the HTTP request lifecycle.
 
-Example:
-
-~~~bash
+```bash
 gunicorn ecommerce.wsgi:application
 celery -A ecommerce worker --loglevel=INFO
-~~~
+```
 
 Redis must be network-restricted and authenticated in production.
 
 ---
 
-## Testing
+# Testing and quality gates
 
-Run the full application test suite:
+Run the application tests:
 
-~~~bash
+```bash
 python manage.py test store --verbosity 2
-~~~
+```
 
-Run Django's production checks:
+Run production checks:
 
-~~~bash
+```bash
 python manage.py check --deploy
-~~~
+```
 
-Verify migrations:
+Verify migration drift:
 
-~~~bash
+```bash
 python manage.py makemigrations --check --dry-run
-~~~
+```
 
-Collect production static assets:
+Collect production assets:
 
-~~~bash
+```bash
 python manage.py collectstatic --noinput
-~~~
+```
 
-Audit Python dependencies:
+Audit dependencies:
 
-~~~bash
+```bash
 pip-audit -r requirements.txt
-~~~
+```
 
-The GitHub Actions pipeline runs these checks automatically for \`perez\`, \`main\`, and pull requests targeting \`main\`.
+The test suite covers critical integrity and authorization paths including checkout validation, inventory concurrency, payment callbacks, idempotency, COD behavior, historical pricing, seller settlements, promotions, delivery authorization, GPS validation, health probes, audit events, and security middleware behavior.
 
 ---
 
-## CI/CD policy
+# CI/CD
 
-There are two active branches:
+There are exactly two active development branches:
 
-~~~text
+```text
 perez  → development / integration
 main   → production
-~~~
+```
 
-The required workflow is:
+Required workflow:
 
-~~~text
-change
-  ↓
-perez
-  ↓
-CI
-  ↓
-Pull Request
-  ↓
-CI
-  ↓
-merge
-  ↓
-main
-~~~
+```mermaid
+flowchart LR
+    A[Change] --> B[perez]
+    B --> C[CI]
+    C --> D[Pull Request]
+    D --> E[CI + Review]
+    E --> F[Merge]
+    F --> G[main]
+    G --> H[Production]
+```
 
-Each production phase should be independently committed, tested, reviewed, and merged.
+### CI gates
 
-The CI pipeline verifies:
+The pipeline verifies:
 
 - dependency installation
 - dependency consistency
 - Python compilation
 - Django system checks
 - Django deployment checks
+- PostgreSQL-backed migrations
 - migration drift
-- database migrations
 - static asset collection
 - application tests
-- Python dependency vulnerabilities
+- dependency vulnerability scanning
+
+Production changes are not considered complete until the relevant CI gates pass.
 
 ---
 
-## Repository structure
+# Current production boundary
 
-~~~text
-Agri-Market-E-Commerce/
-├── ecommerce/
-│   ├── settings.py
-│   ├── urls.py
-│   ├── celery.py
-│   └── wsgi.py
-│
-├── store/
-│   ├── models.py
-│   ├── views.py
-│   ├── forms.py
-│   ├── payments.py
-│   ├── sms.py
-│   ├── health.py
-│   ├── utils.py
-│   ├── tasks.py
-│   ├── services/
-│   │   ├── audit.py
-│   │   ├── delivery.py
-│   │   ├── payments.py
-│   │   └── promotions.py
-│   ├── migrations/
-│   ├── management/
-│   ├── templates/
-│   └── test_integrity.py
-│
-├── static/
-│   ├── css/
-│   ├── js/
-│   └── images/
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
-~~~
+## Implemented
 
----
-
-## Current production boundary
-
-### Implemented
-
-- Core agricultural marketplace
+- Agricultural marketplace foundation
 - Catalog/search/filtering
 - Pagination
 - Persistent and anonymous carts
 - Transactional checkout
 - Inventory concurrency protection
 - Server-side payment verification
-- Payment webhook verification
+- Authenticated payment webhook verification
 - Payment idempotency
 - COD lifecycle
 - Seller settlement ledger
@@ -533,17 +732,17 @@ Agri-Market-E-Commerce/
 - Redis caching
 - Celery task infrastructure
 - Object-storage integration
-- Sentry integration
+- Sentry integration hooks
 - Audit logging
 - Health probes
 - Security headers and CSP
 - Rate limiting
 - Database indexing and integrity constraints
-- Automated CI checks
+- Automated CI quality gates
 
-### Intentionally not represented as complete
+## Requires further provider/product work
 
-These require further provider/product work before they should be considered production-complete:
+These should not be described as fully production-complete until their external systems are certified and operational:
 
 - automated seller payout execution and reconciliation
 - refunds and chargebacks
@@ -553,17 +752,21 @@ These require further provider/product work before they should be considered pro
 - cross-border settlement
 - advanced demand forecasting
 - public versioned REST/mobile API
+- provider-specific live credentials and certification
+- production backup restoration validation
+- external penetration testing
+- production load/capacity testing
 
 ---
 
-## Deployment principles
+# Deployment principles
 
 Production infrastructure should provide:
 
 1. Managed PostgreSQL with automated backups and tested restoration.
-2. Redis with authentication/network isolation.
+2. Redis with authentication and network isolation.
 3. Object storage for media.
-4. HTTPS termination at the trusted edge.
+4. HTTPS termination at a trusted edge.
 5. Gunicorn or another production WSGI/ASGI server.
 6. Celery workers where asynchronous work is enabled.
 7. Error monitoring.
@@ -573,19 +776,29 @@ Production infrastructure should provide:
 11. Database and media backup/retention policies.
 12. Secret management outside Git.
 
-The application repository cannot prove that external infrastructure is correctly backed up or configured; those controls belong in the deployment environment and must be verified there.
+The repository can enforce application behavior, but it cannot prove that an external provider, backup system, DNS configuration, payment account, or production infrastructure is correctly configured. Those controls must be independently verified in the deployment environment.
 
 ---
 
-## License
+# Copyright and license
 
-MIT. See [LICENSE](LICENSE).
+**Copyright © 2026 Kweezi Perez.**
+
+Agri-Market, its source code, documentation, architecture, application-specific implementations, and original project materials are copyright protected.
+
+This repository is distributed under the **MIT License**, which grants the permissions stated in the accompanying [LICENSE](LICENSE) file. Copyright ownership is retained by the copyright holder; the MIT License defines the permissions granted to users of the software.
+
+Unless separately authorized by the copyright holder, third-party trademarks, provider names, logos, credentials, private infrastructure configuration, and proprietary external services remain the property of their respective owners.
+
+For licensing questions or commercial arrangements, contact the project owner before redistributing modified versions outside the permissions granted by the license.
 
 ---
 
-## Project
+## Project identity
 
 **Agri-Market**  
 Uganda-focused agricultural commerce infrastructure.
+
+**Copyright © 2026 Kweezi Perez.**
 
 Built with Django, PostgreSQL, Redis, Celery, and a production-first engineering approach.
