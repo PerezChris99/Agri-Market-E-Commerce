@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from .services.national import catalog_page, area_tree, nearest_hubs, readiness_snapshot, authenticate_api_key
 
@@ -24,6 +25,7 @@ def areas(request):
 def hubs(request):
     return JsonResponse({"version": "v1", "results": nearest_hubs(limit=request.GET.get("limit", 10))})
 
+@csrf_exempt
 @require_POST
 @key_required
 def sync(request):
