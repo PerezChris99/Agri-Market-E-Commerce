@@ -584,3 +584,25 @@ class WishlistAndModelIntegrityTests(UserFactoryMixin, TestCase):
         self.assertFalse(product.reduce_stock(2))
         product.refresh_from_db()
         self.assertEqual(product.stock, 1)
+
+
+class ProductionSecurityRegressionTests(TestCase):
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=['testserver'])
+    def test_health_endpoints_are_never_cached(self):
+        for name in ('health_live', 'health_ready'):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response['Cache-Control'], 'no-store, max-age=0')
+
+    def test_authenticated_sensitive_pages_send_no_store(self):
+        user = User.objects.create_user(username='cacheuser', password='StrongPassword123!')
+        self.client.force_login(user)
+        for name in ('profile', 'cart', 'wishlist'):
+            response = self.client.get(reverse(name))
+            self.assertIn('no-store', response.get('Cache-Control', ''))
+
+    def test_permissions_policy_is_present_on_normal_responses(self):
+        response = self.client.get(reverse('homepage'))
+        self.assertEqual(
+            response['Permissions-Policy'],
+            'camera=(), microphone=(), geolocation=(self)',
+        )
