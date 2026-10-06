@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.core.paginator import Paginator
 from django.db.models import Q, Avg, Sum, Count, F
 from django.db.models.functions import TruncDate, Coalesce
