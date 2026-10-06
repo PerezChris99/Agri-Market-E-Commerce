@@ -23,6 +23,19 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agrimarket_ci
+          POSTGRES_USER: agrimarket
+          POSTGRES_PASSWORD: agrimarket
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U agrimarket -d agrimarket_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +46,7 @@ jobs:
       DEBUG: 'False'
       ALLOWED_HOSTS: localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: https://localhost
-      DATABASE_URL: sqlite:///ci.sqlite3
+      DATABASE_URL: postgresql://agrimarket:agrimarket@localhost:5432/agrimarket_ci
       REDIS_URL: redis://localhost:6379/0
       AWS_STORAGE_BUCKET_NAME: ci-bucket
       AWS_ACCESS_KEY_ID: ci-access-key
