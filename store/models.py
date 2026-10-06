@@ -330,6 +330,8 @@ class Order(models.Model):
             if order.complete:
                 return False
             items = list(order.items.select_related('product'))
+            if not items:
+                raise ValidationError('Cannot place an empty order.')
             for item in items:
                 if not item.product or item.product.digital:
                     continue
@@ -611,10 +613,12 @@ class MobileMoneyPayment(models.Model):
             if provider_reference:
                 payment.provider_reference = str(provider_reference)
 
-            payment.order.mark_as_paid(
+            completed = payment.order.mark_as_paid(
                 transaction_id=payment.transaction_id,
                 payment_method=f"mobile_money_{payment.provider}",
             )
+            if not completed:
+                return False
 
             payment.status = 'successful'
             payment.completed_at = timezone.now()
