@@ -1,6 +1,7 @@
 from django.urls import path
 from . import health
 from . import views
+from . import national_api
 
 urlpatterns = [
     path('health/live/', health.live, name='health_live'),
@@ -48,4 +49,9 @@ urlpatterns = [
     
     # Newsletter API
     path('api/newsletter/subscribe/', views.newsletter_subscribe, name="newsletter_subscribe"),
+    path('api/v1/products/', national_api.products, name='api_v1_products'),
+    path('api/v1/areas/', national_api.areas, name='api_v1_areas'),
+    path('api/v1/hubs/', national_api.hubs, name='api_v1_hubs'),
+    path('api/v1/readiness/', national_api.readiness, name='api_v1_readiness'),
+    path('api/v1/sync/', national_api.sync, name='api_v1_sync'),
 ]

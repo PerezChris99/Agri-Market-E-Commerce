@@ -94,7 +94,7 @@ jobs:
         run: python manage.py collectstatic --noinput
 
       - name: Run test suite
-        run: python manage.py test store --verbosity 2
+        run: python manage.py test store --verbosity 2 && python manage.py test store --pattern='*_quality.py' --verbosity 2
 
   security:
     name: Dependency security audit
