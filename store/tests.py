@@ -93,7 +93,7 @@ class FormTests(TestCase):
             'password2': 'short',
         })
         self.assertFalse(form.is_valid())
-        self.assertIn('password1', form.errors)
+        self.assertIn('password2', form.errors)
 
     def test_registration_rejects_duplicate_email_case_insensitively(self):
         User.objects.create_user(username='existing', email='User@Example.com', password='StrongPassword123!')
@@ -346,6 +346,7 @@ class AuthorizationTests(UserFactoryMixin, TestCase):
 
     def test_dashboard_allows_staff(self):
         user = User.objects.create_user(username='staff', password='StrongPassword123!', is_staff=True)
+        self.client.force_login(user)
         response = self.client.get(reverse('admin_dashboard'))
         self.assertEqual(response.status_code, 200)
 
