@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from .services.national import catalog_page, area_tree, nearest_hubs, readiness_snapshot, authenticate_api_key
 
 def key_required(view):
@@ -23,6 +23,24 @@ def areas(request):
 @require_GET
 def hubs(request):
     return JsonResponse({"version": "v1", "results": nearest_hubs(limit=request.GET.get("limit", 10))})
+
+@require_POST
+@key_required
+def sync(request):
+    import json
+    try:
+        data = json.loads(request.body or "{}")
+        event, created = accept_sync_event(
+            api_client=request.api_client,
+            device_id=data.get("device_id", ""),
+            idempotency_key=data.get("idempotency_key", ""),
+            event_type=data.get("event_type", ""),
+            payload=data.get("payload") or {},
+            user=request.user if request.user.is_authenticated else None,
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return JsonResponse({"version":"v1","accepted":True,"created":created,"idempotency_key":event.idempotency_key,"status":event.status})
 
 @require_GET
 @key_required
