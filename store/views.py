@@ -11,7 +11,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django_ratelimit.decorators import ratelimit
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg, Sum, Count, F
+from django.db.models import Q, Avg, Sum, Count, F, FloatField, Value
 from django.db.models.functions import TruncDate, Coalesce
 from django.conf import settings
 from django.db import transaction
@@ -47,7 +47,7 @@ def homepage(request):
         Product.objects.filter(is_active=True, is_featured=True)
         .select_related('category')
         .annotate(
-            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), 0),
+            avg_rating=Coalesce(Avg('reviews__rating', filter=Q(reviews__is_approved=True)), Value(0.0), output_field=FloatField()),
             review_count=Count('reviews', filter=Q(reviews__is_approved=True)),
         )[:8]
     )
