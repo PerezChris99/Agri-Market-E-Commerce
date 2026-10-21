@@ -81,13 +81,13 @@ If you represent a company or are proposing a commercial service, disclose that 
 
 Do not send unsolicited production credentials, ask for access to customer data, or connect your service to this project without written approval. The project is not obligated to adopt, advertise, or endorse a vendor product.
 
-## 7. Copyright and licensing
+## 7. Copyright, permissions, and third-party material
 
-The repository's existing `LICENSE` is the authoritative statement of the license for the project. **It currently contains the MIT License.** This guide describes the project's review and approval process for contributions; it does not replace or misrepresent the permissions granted by that license.
+The project and its original source code, documentation, architecture, designs, and other original materials are claimed as proprietary to the copyright holder. The repository's `LICENSE` file contains the project's proprietary rights notice. Public visibility of the repository does not, by itself, grant permission to use, copy, modify, redistribute, or create derivative works from the project.
 
-By proposing code, you should be able to confirm that you have the right to submit it and that it does not improperly copy third-party or employer-owned material. Identify any reused code, assets, datasets, or other materials and their licenses. Do not submit material with incompatible or unclear rights.
+Obtain explicit written permission and agree on applicable terms before beginning any contribution or other use. A contribution proposal, pull request, or acceptance of work does not automatically transfer ownership or grant a license; rights and terms must be expressly agreed in writing. The owner may require a separate written contributor agreement for a particular contribution.
 
-Any separate contributor agreement, assignment, or additional licensing condition must be discussed explicitly and agreed to separately; do not assume one exists merely because you submitted a proposal.
+Contributors must have the right to submit their work and must not improperly copy third-party or employer-owned material. Identify reused code, assets, datasets, and other materials along with their applicable rights and terms. Third-party components remain subject to their respective owners' terms. This guide and the proprietary notice do not purport to remove rights that applicable law does not allow the copyright holder to exclude.
 
 ## 8. Communication and conduct
 
