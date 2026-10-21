@@ -7,9 +7,8 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Cache%2FBroker-Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
-[![License](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 
-**Copyright © 2026 Kweezi Perez. All rights reserved except as expressly granted under the MIT License.**
+**Copyright © 2026 Kweezi Perez. All rights reserved. Use of this project requires prior written authorization from the copyright holder.**
 
 Agri-Market is a Django-based agricultural marketplace connecting Ugandan farmers and sellers with consumers and larger buyers. The platform is designed around local commerce requirements including UGX pricing, Mobile Money, Uganda-wide delivery zones, seller verification, delivery operations, promotions, reviews, and marketplace settlement.
 
@@ -40,7 +39,7 @@ The engineering objective is:
 - [CI/CD](#cicd)
 - [Production boundary](#production-boundary)
 - [Deployment principles](#deployment-principles)
-- [Copyright and license](#copyright-and-license)
+- [Copyright and permissions](#copyright-and-permissions)
 
 ---
 
@@ -780,17 +779,15 @@ The repository can enforce application behavior, but it cannot prove that an ext
 
 ---
 
-# Copyright and license
+# Copyright and permissions
 
-**Copyright © 2026 Kweezi Perez.**
+**Copyright © 2026 Kweezi Perez. All rights reserved.**
 
-Agri-Market, its source code, documentation, architecture, application-specific implementations, and original project materials are copyright protected.
+Agri-Market, including its source code, documentation, architecture, application-specific implementations, and original project materials, is proprietary to the copyright holder unless a separate written authorization expressly states otherwise.
 
-This repository is distributed under the **MIT License**, which grants the permissions stated in the accompanying [LICENSE](LICENSE) file. Copyright ownership is retained by the copyright holder; the MIT License defines the permissions granted to users of the software.
+No permission to use, copy, modify, redistribute, sublicense, or create derivative works is granted by making this repository publicly viewable. Any authorized use or contribution must be covered by written permission from the copyright holder and any applicable written terms. Applicable law may provide rights that cannot be excluded by this notice.
 
-Unless separately authorized by the copyright holder, third-party trademarks, provider names, logos, credentials, private infrastructure configuration, and proprietary external services remain the property of their respective owners.
-
-For licensing questions or commercial arrangements, contact the project owner before redistributing modified versions outside the permissions granted by the license.
+Third-party trademarks, provider names, logos, and services remain the property of their respective owners. Contact the project owner for permissions or commercial arrangements.
 
 ---
 
